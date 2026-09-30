@@ -1,0 +1,92 @@
+import "./style.css";
+import { redirect } from "@elements/app";
+import favicon from "#app/shared/assets/favicons/favicon.svg";
+import { Site, coupleNames } from "#app/shared/services/wedding";
+import { signin, DEMO_LOGIN } from "#app/shared/services/auth";
+
+interface SigninForm {
+  email: string;
+  password: string;
+  error: string;
+}
+
+function onSubmit(form: SigninForm) {
+  try {
+    signin(form.email, form.password);
+    form.error = "";
+    redirect("/admin");
+  } catch (err: any) {
+    form.error = err.message;
+  }
+}
+
+function onUseDemo(form: SigninForm) {
+  form.email = DEMO_LOGIN.email;
+  form.password = DEMO_LOGIN.password;
+}
+
+<html lang="en" class="page-signin is-wedding" (
+  site: Site,
+  private form: SigninForm = { email: "", password: "", error: "" },
+)>
+  <head>
+    <title>Sign in · {coupleNames(site)}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href={favicon} />
+  </head>
+  <body>
+    <main class="signin-main center">
+      <div class="signin stack is-lg">
+        <div class="signin-head stack is-sm">
+          <h1 class="script">{coupleNames(site)}</h1>
+          <p>Sign in to manage your wedding site.</p>
+        </div>
+
+        <form class="card" onsubmit={() => onSubmit(form)}>
+          <div class="card-body stack is-md">
+            <p e:if={form.error} class="callout is-danger" role="alert">{form.error}</p>
+
+            <div class="field">
+              <label for="email">Email</label>
+              <input id="email"
+                     name="email"
+                     type="email"
+                     value={form.email}
+                     autocomplete="email"
+                     autocapitalize="none"
+                     spellcheck={false}
+                     required>
+            </div>
+
+            <div class="field">
+              <label for="password">Password</label>
+              <input id="password"
+                     name="password"
+                     type="password"
+                     value={form.password}
+                     autocomplete="current-password"
+                     required>
+            </div>
+
+            <button type="submit" class="is-primary is-block">Sign in</button>
+          </div>
+        </form>
+
+        <div class="callout is-accent demo-login">
+          <p class="callout-title">Demo admin login</p>
+          <div class="callout-body stack is-sm">
+            <dl>
+              <dt>Email</dt>
+              <dd>{DEMO_LOGIN.email}</dd>
+              <dt>Password</dt>
+              <dd>{DEMO_LOGIN.password}</dd>
+            </dl>
+            <div><button type="button" class="is-sm" onclick={() => onUseDemo(form)}>Fill it in for me</button></div>
+          </div>
+        </div>
+
+        <p class="signin-back"><a class="link-muted" href="/">Back to the wedding site</a></p>
+      </div>
+    </main>
+  </body>
+</html>

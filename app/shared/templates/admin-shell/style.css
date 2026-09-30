@@ -1,0 +1,55 @@
+@import "#app/shared/styles/page.css";
+
+.admin-bar {
+  border-bottom: 1px solid var(--rule);
+  background: var(--bg);
+}
+
+.admin-bar-inner {
+  justify-content: space-between;
+  max-width: var(--container-wide);
+  margin-inline: auto;
+  padding: var(--space-3) var(--space-6) 0;
+}
+
+.admin-brand {
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+}
+
+.admin-brand-names {
+  font-family: "Cormorant Garamond", var(--font-serif);
+  font-size: var(--text-2xl);
+  font-style: italic;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.admin-bar .tab-list {
+  border-bottom: 0;
+}
+
+.admin-bar .tab {
+  text-decoration: none;
+}
+
+.admin-actions {
+  padding-bottom: var(--space-3);
+}
+
+.admin-main {
+  padding-block: var(--space-8) var(--space-16);
+}
+
+@media (max-width: 45rem) {
+  .admin-bar-inner {
+    flex-wrap: wrap;
+    padding-inline: var(--space-4);
+  }
+
+  .admin-bar .tab-list {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+  }
+}

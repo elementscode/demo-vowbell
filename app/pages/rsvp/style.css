@@ -1,0 +1,156 @@
+@import "#app/shared/styles/wedding.css";
+
+.rsvp-main {
+  padding: var(--space-12) var(--space-5) var(--space-24);
+}
+
+.rsvp-head {
+  text-align: center;
+  margin-bottom: var(--space-10);
+}
+
+.rsvp-head h1 {
+  margin: 0;
+  font-size: clamp(var(--text-5xl), 8vw, var(--text-7xl));
+  line-height: var(--leading-none);
+}
+
+.rsvp-head p {
+  margin: 0;
+  text-wrap: balance;
+  color: var(--ink-soft);
+  font-size: var(--text-lg);
+}
+
+.rsvp-head .eyebrow {
+  color: var(--accent);
+  letter-spacing: var(--tracking-widest);
+  font-size: var(--text-xs);
+}
+
+.rsvp-card {
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-lg);
+  border-color: transparent;
+}
+
+.code-input {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+  letter-spacing: 0.3em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.guest {
+  padding: var(--space-6) 0;
+  border-top: 1px solid var(--rule);
+}
+
+.guest:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.guest-name {
+  margin: 0;
+  font-size: var(--text-3xl);
+}
+
+.choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.choice button {
+  height: auto;
+  padding: var(--space-4);
+  font-size: var(--text-base);
+}
+
+.choice button.is-active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-deep);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.meals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.meals legend {
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.meal {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+}
+
+.meal:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.meal input {
+  margin-top: 0.2em;
+}
+
+.meal-label {
+  display: block;
+  font-weight: var(--weight-medium);
+}
+
+.meal-note {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--ink-dim);
+}
+
+.done {
+  text-align: center;
+}
+
+.done h2 {
+  margin: 0;
+  font-size: var(--text-5xl);
+}
+
+.done p {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.summary {
+  width: 100%;
+  text-align: left;
+}
+
+.summary td:last-child {
+  text-align: right;
+  color: var(--ink-soft);
+}
+
+.replied {
+  justify-content: center;
+}
+
+@media (max-width: 45rem) {
+  .rsvp-main {
+    padding-top: var(--space-6);
+  }
+}
