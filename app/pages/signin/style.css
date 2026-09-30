@@ -1,0 +1,54 @@
+@import "#app/shared/styles/wedding.css";
+
+.signin-main {
+  min-height: 100svh;
+  padding: var(--space-10) var(--space-5);
+}
+
+.signin {
+  width: 100%;
+  max-width: 26rem;
+}
+
+.signin-head {
+  text-align: center;
+}
+
+.signin-head h1 {
+  margin: 0;
+  font-size: var(--text-6xl);
+  line-height: var(--leading-none);
+}
+
+.signin-head p {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.signin .card {
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-lg);
+  border-color: transparent;
+}
+
+.demo-login dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+}
+
+.demo-login dt {
+  color: var(--ink-dim);
+}
+
+.demo-login dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.signin-back {
+  text-align: center;
+  font-size: var(--text-sm);
+}

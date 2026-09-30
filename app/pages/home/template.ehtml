@@ -1,0 +1,261 @@
+import "./style.css";
+import favicon from "#app/shared/assets/favicons/favicon.svg";
+import { SiteHeader, SiteFooter } from "#app/shared/templates/site-header";
+import {
+  Site,
+  WeddingEvent,
+  Hotel,
+  Photo,
+  photoUrl,
+  coupleNames,
+  firstName,
+  paragraphs,
+  formatDate,
+  formatDay,
+  formatTime,
+} from "#app/shared/services/wedding";
+
+export interface Countdown {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+  done: boolean;
+}
+
+export function countdown(to: Date, now: Date): Countdown {
+  let ms = Math.max(0, to.getTime() - now.getTime());
+  let s = Math.floor(ms / 1000);
+
+  return {
+    days: Math.floor(s / 86400),
+    hours: Math.floor((s % 86400) / 3600),
+    minutes: Math.floor((s % 3600) / 60),
+    seconds: s % 60,
+    done: ms === 0,
+  };
+}
+
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+interface ScheduleLine {
+  id: string;
+  event: WeddingEvent;
+  day: string;
+  startsDay: boolean;
+}
+
+/** One flat list, with a flag on the first event of each day. */
+export function scheduleLines(events: WeddingEvent[], timeZone: string): ScheduleLine[] {
+  let last = "";
+
+  return events.map((event) => {
+    let day = formatDay(event.startsAt, timeZone);
+    let startsDay = day !== last;
+    last = day;
+
+    return { id: event.id, event, day, startsDay };
+  });
+}
+
+function coverPhoto(site: Site, photos: Photo[]): Photo | undefined {
+  return photos.find((p) => p.id === site.coverPhotoId) ?? photos[0];
+}
+
+function storyPhoto(site: Site, photos: Photo[]): Photo | undefined {
+  return photos.find((p) => p.id !== site.coverPhotoId);
+}
+
+function onTick(clock: { now: Date }) {
+  clock.now = new Date();
+}
+
+function onInit(clock: { now: Date }, view: { open: number }, count: number) {
+  setInterval(() => onTick(clock), 1000);
+  window.addEventListener("keydown", (e) => onKeyDown(e, view, count));
+}
+
+function onStep(e: MouseEvent, view: { open: number }, count: number, by: number) {
+  e.stopPropagation();
+  view.open = (view.open + by + count) % count;
+}
+
+function onKeyDown(e: KeyboardEvent, view: { open: number }, count: number) {
+  if (view.open < 0) {
+    return;
+  }
+
+  switch (e.key) {
+    case "Escape":
+      view.open = -1;
+      break;
+
+    case "ArrowRight":
+      view.open = (view.open + 1) % count;
+      break;
+
+    case "ArrowLeft":
+      view.open = (view.open - 1 + count) % count;
+      break;
+  }
+}
+
+<html lang="en" class="page-home is-wedding" (
+  site: Site,
+  events: WeddingEvent[],
+  hotels: Hotel[],
+  photos: Photo[],
+  private clock: { now: Date } = { now: new Date() },
+  private view: { open: number } = { open: -1 },
+) oninit={() => onInit(clock, view, photos.length)}>
+  <head>
+    <title>{coupleNames(site)} · {formatDate(site.weddingAt, site.timeZone)}</title>
+    <meta name="description" content={`${site.partnerOne} and ${site.partnerTwo} are getting married in ${site.city}.`}>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href={favicon} />
+  </head>
+  <body>
+    <SiteHeader {site} overlay={true} />
+
+    <section class="hero">
+      <img e:if={coverPhoto(site, photos)} class="hero-photo" src={photoUrl(coverPhoto(site, photos)!)} alt="">
+
+      <div class="hero-inner stack is-lg">
+        <p class="eyebrow">Together with their families</p>
+
+        <h1 class="hero-names">
+          {firstName(site.partnerOne)}<span class="amp">&</span>{firstName(site.partnerTwo)}
+        </h1>
+
+        <p class="hero-when"><span>{formatDate(site.weddingAt, site.timeZone)}</span><span class="hero-sep"> · </span><span>{site.city}</span></p>
+        <p e:if={site.tagline} class="hero-tagline">{site.tagline}</p>
+
+        <div e:if={!countdown(site.weddingAt, clock.now).done} class="countdown" aria-label="Countdown to the wedding">
+          <div class="countdown-unit">
+            <span class="countdown-value">{countdown(site.weddingAt, clock.now).days}</span>
+            <span class="countdown-label">days</span>
+          </div>
+          <div class="countdown-unit">
+            <span class="countdown-value">{pad(countdown(site.weddingAt, clock.now).hours)}</span>
+            <span class="countdown-label">hours</span>
+          </div>
+          <div class="countdown-unit">
+            <span class="countdown-value">{pad(countdown(site.weddingAt, clock.now).minutes)}</span>
+            <span class="countdown-label">minutes</span>
+          </div>
+          <div class="countdown-unit">
+            <span class="countdown-value">{pad(countdown(site.weddingAt, clock.now).seconds)}</span>
+            <span class="countdown-label">seconds</span>
+          </div>
+        </div>
+        <p e:else class="hero-tagline">Just married.</p>
+
+        <a class="button is-lg" href="/rsvp">RSVP</a>
+      </div>
+    </section>
+
+    <section id="story" class="band">
+      <div class="band-inner story">
+        <img e:if={storyPhoto(site, photos)} class="story-photo" src={photoUrl(storyPhoto(site, photos)!)} alt={storyPhoto(site, photos)!.caption}>
+
+        <div class="story-text">
+          <p class="eyebrow">Our story</p>
+          <h2>{site.storyTitle}</h2>
+          <div class="story-body">
+            <p e:for={para of paragraphs(site.story)}>{para}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="schedule" class="band is-deep">
+      <div class="band-inner">
+        <div class="band-head stack is-sm">
+          <p class="eyebrow">The weekend</p>
+          <h2>Schedule of events</h2>
+        </div>
+
+        <ol class="schedule">
+          <li e:for={line of scheduleLines(events, site.timeZone)}>
+            <h3 e:if={line.startsDay} class="schedule-day">{line.day}</h3>
+            <div class="schedule-item">
+              <div class="schedule-time">{formatTime(line.event.startsAt, site.timeZone)}</div>
+              <div>
+                <h3>{line.event.name}</h3>
+                <p class="schedule-where">{line.event.place}</p>
+                <p e:if={line.event.address} class="schedule-address">{line.event.address}</p>
+                <p e:if={line.event.details} class="schedule-details">{line.event.details}</p>
+                <span e:if={line.event.attire} class="pill">{line.event.attire}</span>
+              </div>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="travel" class="band">
+      <div class="band-inner">
+        <div class="band-head stack is-sm">
+          <p class="eyebrow">Getting here</p>
+          <h2>Travel & hotels</h2>
+        </div>
+
+        <div class="travel">
+          <div class="travel-text">
+            <p e:for={para of paragraphs(site.travel)}>{para}</p>
+          </div>
+
+          <div class="stack is-md">
+            <div e:for={hotel of hotels} class="hotel card">
+              <div class="card-body stack is-sm">
+                <h3>{hotel.name}</h3>
+                <p class="hotel-address">{hotel.address}</p>
+                <p e:if={hotel.details}>{hotel.details}</p>
+                <p e:if={hotel.url}><a href={hotel.url} target="_blank" rel="noopener">Book a room</a></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="gallery" class="band is-deep">
+      <div class="band-inner">
+        <div class="band-head stack is-sm">
+          <p class="eyebrow">Moments</p>
+          <h2>Gallery</h2>
+        </div>
+
+        <div class="gallery">
+          <button e:for={[i, photo] of photos.entries()} type="button" class="gallery-item" onclick={() => view.open = i}>
+            <img src={photoUrl(photo)} alt={photo.caption} loading="lazy">
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="band cta">
+      <div class="stack is-lg">
+        <h2 class="script">We hope you can join us</h2>
+        <p e:if={site.rsvpBy}>Kindly reply by {formatDay(site.rsvpBy!, "UTC")}.</p>
+        <a class="button is-primary is-lg" href="/rsvp">RSVP with your invitation code</a>
+      </div>
+    </section>
+
+    <SiteFooter {site} />
+
+    <div e:if={view.open >= 0 && photos[view.open]} class="lightbox" onclick={() => view.open = -1}>
+      <img src={photoUrl(photos[view.open])} alt={photos[view.open].caption}>
+      <div class="stack is-sm">
+        <p e:if={photos[view.open].caption} class="lightbox-caption">{photos[view.open].caption}</p>
+        <div class="lightbox-bar row">
+          <button type="button" class="is-sm" onclick={(e) => onStep(e, view, photos.length, -1)}>Previous</button>
+          <button type="button" class="is-sm">Close</button>
+          <button type="button" class="is-sm" onclick={(e) => onStep(e, view, photos.length, 1)}>Next</button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

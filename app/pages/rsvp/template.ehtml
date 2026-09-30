@@ -1,0 +1,318 @@
+import "./style.css";
+import { sql, tx, email, NotFoundError, ValidationError } from "@elements/app";
+import favicon from "#app/shared/assets/favicons/favicon.svg";
+import { SiteHeader, SiteFooter } from "#app/shared/templates/site-header";
+import { Site, MEALS, mealLabel, formatDay, loadSite } from "#app/shared/services/wedding";
+import { Party, PartyGuest, rsvpChannel, loadPartyByCode, normalizeCode } from "#app/shared/services/guests";
+import RsvpConfirmationEmail from "#app/emails/rsvp-confirmation";
+
+export interface GuestReply {
+  id: string;
+  attending: boolean | null;
+  meal: string;
+  dietary: string;
+}
+
+export interface RsvpReply {
+  code: string;
+  email: string;
+  song: string;
+  message: string;
+  guests: GuestReply[];
+}
+
+type Step = "code" | "reply" | "done";
+
+interface RsvpState {
+  step: Step;
+  code: string;
+  error: string;
+  busy: boolean;
+  party: Party | null;
+  reply: RsvpReply;
+}
+
+/** @rpc */
+export function findInvitation(code: string): Party {
+  let party = loadPartyByCode(code);
+
+  if (!party) {
+    throw new NotFoundError("We couldn't find that code. Check your invitation and try again.");
+  }
+
+  return party;
+}
+
+export function checkReply(reply: RsvpReply, party: Party) {
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(reply.email.trim())) {
+    throw new ValidationError("Enter an email address so we can send your confirmation.");
+  }
+
+  for (let g of party.guests) {
+    let r = reply.guests.find((x) => x.id === g.id);
+
+    if (!r || typeof r.attending !== "boolean") {
+      throw new ValidationError(`Let us know whether ${g.name} can come.`);
+    }
+
+    if (r.attending && !MEALS.some((m) => m.value === r.meal)) {
+      throw new ValidationError(`Choose a dinner for ${g.name}.`);
+    }
+  }
+}
+
+/** @rpc */
+export function submitRsvp(reply: RsvpReply): Party {
+  let party = findInvitation(reply.code);
+  checkReply(reply, party);
+
+  tx(() => {
+    for (let g of party.guests) {
+      let r = reply.guests.find((x) => x.id === g.id)!;
+
+      sql(
+        `update guests
+         set attending = ${r.attending},
+             meal = ${r.attending ? r.meal : null},
+             dietary = ${r.attending ? r.dietary.trim() : ""}
+         where id = ${g.id} and partyId = ${party.id}`,
+      );
+    }
+
+    sql(
+      `update parties
+       set email = ${reply.email.trim().toLowerCase()},
+           song = ${reply.song.trim()},
+           message = ${reply.message.trim()},
+           respondedAt = now()
+       where id = ${party.id}`,
+    );
+  });
+
+  let saved = findInvitation(reply.code);
+
+  email({
+    to: saved.email,
+    subject: "Your RSVP is in",
+    body: new RsvpConfirmationEmail({ site: loadSite(), party: saved }),
+  });
+
+  rsvpChannel.notify({ partyId: saved.id });
+
+  return saved;
+}
+
+export function replyFor(party: Party): RsvpReply {
+  return {
+    code: party.code,
+    email: party.email,
+    song: party.song,
+    message: party.message,
+    guests: party.guests.map((g) => ({ id: g.id, attending: g.attending, meal: g.meal ?? "", dietary: g.dietary })),
+  };
+}
+
+function emptyReply(): RsvpReply {
+  return { code: "", email: "", song: "", message: "", guests: [] };
+}
+
+function initialState(party: Party | null, code: string): RsvpState {
+  return {
+    step: (party ? "reply" : "code") as Step,
+    code: party?.code ?? code,
+    error: party || !code ? "" : "We couldn't find that code. Check your invitation and try again.",
+    busy: false,
+    party,
+    reply: party ? replyFor(party) : emptyReply(),
+  };
+}
+
+function guestName(party: Party | null, id: string): string {
+  return party?.guests.find((g) => g.id === id)?.name ?? "";
+}
+
+function replyLine(g: PartyGuest): string {
+  if (!g.attending) {
+    return "Regretfully declines";
+  }
+
+  return mealLabel(g.meal) || "Attending";
+}
+
+function onFind(state: RsvpState) {
+  state.busy = true;
+
+  try {
+    let party = findInvitation(normalizeCode(state.code));
+    state.party = party;
+    state.reply = replyFor(party);
+    state.error = "";
+    state.step = "reply";
+  } catch (err: any) {
+    state.error = err.message;
+  }
+
+  state.busy = false;
+}
+
+function onAttend(r: GuestReply, attending: boolean) {
+  r.attending = attending;
+
+  if (!attending) {
+    r.meal = "";
+  }
+}
+
+function onSubmit(state: RsvpState) {
+  state.busy = true;
+
+  try {
+    state.party = submitRsvp(state.reply);
+    state.error = "";
+    state.step = "done";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } catch (err: any) {
+    state.error = err.message;
+  }
+
+  state.busy = false;
+}
+
+function onStartOver(state: RsvpState) {
+  state.step = "code";
+  state.code = "";
+  state.party = null;
+  state.reply = emptyReply();
+  state.error = "";
+}
+
+<html lang="en" class="page-rsvp is-wedding" (
+  site: Site,
+  initial: Party | null,
+  initialCode: string,
+  private state: RsvpState = initialState(initial, initialCode),
+)>
+  <head>
+    <title>RSVP · {site.partnerOne} & {site.partnerTwo}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href={favicon} />
+  </head>
+  <body>
+    <SiteHeader {site} />
+
+    <main class="rsvp-main page-shell is-form">
+      <div class="rsvp-head stack is-sm">
+        <p class="eyebrow">Kindly reply</p>
+        <h1 class="script">RSVP</h1>
+        <p e:if={site.rsvpBy}>Please respond by {formatDay(site.rsvpBy!, "UTC")}.</p>
+      </div>
+
+      <div e:switch={state.step}>
+        <form e:case="code" class="rsvp-card card" onsubmit={() => onFind(state)}>
+          <div class="card-body stack is-lg">
+            <div class="field">
+              <label for="code">Invitation code</label>
+              <input id="code"
+                     name="code"
+                     class="code-input"
+                     value={state.code}
+                     autocomplete="off"
+                     autocapitalize="characters"
+                     spellcheck={false}
+                     maxlength={12}
+                     placeholder="ABC123"
+                     required>
+              <p class="hint">It's printed on the back of your invitation card.</p>
+            </div>
+
+            <p e:if={state.error} class="callout is-danger" role="alert">{state.error}</p>
+
+            <button type="submit" class="is-primary is-lg is-block" disabled={state.busy}>Find my invitation</button>
+          </div>
+        </form>
+
+        <form e:case="reply" class="rsvp-card card" onsubmit={() => onSubmit(state)}>
+          <div class="card-head">
+            <h2>{state.party?.name}</h2>
+            <span e:if={state.party?.respondedAt} class="pill is-success">Replied {state.party!.respondedAt!.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+          </div>
+
+          <div class="card-body stack is-lg">
+            <div>
+              <div e:for={r of state.reply.guests} class="guest stack is-md">
+                <h3 class="guest-name">{guestName(state.party, r.id)}</h3>
+
+                <div class="choice">
+                  <button type="button" class={[r.attending === true && "is-active"]} onclick={() => onAttend(r, true)}>Joyfully accepts</button>
+                  <button type="button" class={[r.attending === false && "is-active"]} onclick={() => onAttend(r, false)}>Regretfully declines</button>
+                </div>
+
+                <fieldset e:if={r.attending === true} class="meals">
+                  <legend>Dinner</legend>
+                  <label e:for={m of MEALS} class="meal">
+                    <input type="radio" name={`meal-${r.id}`} value={m.value} group={r.meal}>
+                    <span>
+                      <span class="meal-label">{m.label}</span>
+                      <span class="meal-note">{m.note}</span>
+                    </span>
+                  </label>
+                </fieldset>
+
+                <div e:if={r.attending === true} class="field">
+                  <label for={`dietary-${r.id}`}>Allergies or dietary needs</label>
+                  <input id={`dietary-${r.id}`} value={r.dietary} placeholder="Optional">
+                </div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="email">Email for your confirmation</label>
+              <input id="email" name="email" type="email" value={state.reply.email} autocomplete="email" autocapitalize="none" spellcheck={false} required>
+            </div>
+
+            <div class="field">
+              <label for="song">Request a song</label>
+              <input id="song" value={state.reply.song} placeholder="The one that gets you on the dance floor">
+            </div>
+
+            <div class="field">
+              <label for="message">A note for the couple</label>
+              <textarea id="message" rows={3} value={state.reply.message} placeholder="Optional"></textarea>
+            </div>
+
+            <p e:if={state.error} class="callout is-danger" role="alert">{state.error}</p>
+          </div>
+
+          <div class="card-foot">
+            <button type="button" class="is-ghost" onclick={() => onStartOver(state)}>Not you?</button>
+            <button type="submit" class="is-primary" disabled={state.busy}>Send RSVP</button>
+          </div>
+        </form>
+
+        <div e:case="done" class="rsvp-card card">
+          <div class="card-body done stack is-lg">
+            <h2 e:if={state.party?.guests.some((g) => g.attending)} class="script">See you in the orchard</h2>
+            <h2 e:else class="script">We'll miss you</h2>
+            <p>Thank you, {state.party?.name}. A confirmation is on its way to {state.party?.email}.</p>
+
+            <table class="summary">
+              <tbody>
+                <tr e:for={g of state.party?.guests ?? []}>
+                  <td>{g.name}</td>
+                  <td>{replyLine(g)}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="cluster replied">
+              <button type="button" onclick={() => state.step = "reply"}>Change my reply</button>
+              <a class="button is-primary" href="/">Back to the site</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <SiteFooter {site} />
+  </body>
+</html>

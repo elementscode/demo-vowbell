@@ -1,0 +1,108 @@
+@import "#app/shared/templates/admin-shell/style.css";
+
+.editor {
+  max-width: var(--container-4xl);
+}
+
+.editor h1 {
+  margin: 0;
+}
+
+.editor-head {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.saved {
+  font-size: var(--text-sm);
+  color: var(--success);
+}
+
+.item {
+  padding: var(--space-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+}
+
+.item-head {
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.item-head strong {
+  font-size: var(--text-md);
+}
+
+.item-sub {
+  font-size: var(--text-sm);
+  color: var(--ink-dim);
+}
+
+.photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: var(--space-4);
+}
+
+.photo {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+}
+
+.photo.is-cover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.photo-img {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--bg-muted);
+}
+
+.photo-img img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-img .pill {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+}
+
+.photo-body {
+  padding: var(--space-3);
+}
+
+.photo-body input {
+  width: 100%;
+}
+
+.photo-actions {
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+
+.photo-actions .row {
+  gap: var(--space-1);
+}
+
+.photo-actions button {
+  white-space: nowrap;
+}
+
+.upload {
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
