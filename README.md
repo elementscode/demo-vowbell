@@ -1,12 +1,12 @@
-![Vowbell, a wedding website built with Elements: the home page hero with the couple's names, the date and place, and a countdown to the ceremony.](POSTER_URL)
+![Vowbell, a wedding website built with Elements: the home page hero with the couple's names, the date and place, and a countdown to the ceremony.](https://elements.dev/demos/01a0f429-2d0f-7fde-8ea7-775ea6066cd6/poster?v=5b0b89c94288)
 
 # Vowbell
 
 > A demo app built with [Elements](https://elements.dev).
 
-A wedding home page with a live countdown, RSVPs by invitation code with meal choices, and an admin for the couple with CSV guest import and a live RSVP tracker.
+A wedding site with a countdown, RSVPs by invite code with meal choices, CSV guest import, and a live RSVP tracker.
 
-**Demo:** [Vowbell](TBD)
+**Demo:** [Vowbell](https://elements.dev/demos/01a0f429-2d0f-7fde-8ea7-775ea6066cd6)
 
 ## Agent specs
 
