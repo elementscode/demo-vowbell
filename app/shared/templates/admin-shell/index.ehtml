@@ -1,0 +1,38 @@
+import "./style.css";
+import { redirect } from "@elements/app";
+import { signout } from "#app/shared/services/auth";
+
+const TABS = [
+  { key: "rsvps", label: "RSVPs", href: "/admin" },
+  { key: "guests", label: "Guest list", href: "/admin/guests" },
+  { key: "site", label: "Site & photos", href: "/admin/site" },
+];
+
+function onSignout() {
+  signout();
+  redirect("/signin");
+}
+
+<AdminShell (names: string, active: string)>
+  <header class="admin-bar">
+    <div class="admin-bar-inner row">
+      <div class="admin-brand row">
+        <a class="admin-brand-names" href="/admin">{names}</a>
+        <span class="pill is-accent">Admin</span>
+      </div>
+
+      <nav class="tab-list">
+        <a e:for={t of TABS} href={t.href} class={["tab", t.key === active && "is-active"]}>{t.label}</a>
+      </nav>
+
+      <div class="admin-actions cluster is-sm">
+        <a class="button is-ghost is-sm" href="/" target="_blank">View site</a>
+        <button type="button" class="is-sm" onclick={() => onSignout()}>Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="admin-main page-shell is-wide">
+    <slot/>
+  </main>
+</AdminShell>

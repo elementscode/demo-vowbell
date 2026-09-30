@@ -1,0 +1,26 @@
+import "./style.css";
+import { Site, coupleNames, formatDate, firstName } from "#app/shared/services/wedding";
+
+<SiteHeader (site: Site, overlay: boolean = false)>
+  <header class={["site-header", overlay && "is-overlay"]}>
+    <div class="site-header-inner row">
+      <a class="site-mark" href="/">{firstName(site.partnerOne)[0]} & {firstName(site.partnerTwo)[0]}</a>
+
+      <nav class="site-nav cluster is-lg">
+        <a class="is-optional" href="/#story">Story</a>
+        <a class="is-optional" href="/#schedule">Schedule</a>
+        <a class="is-optional" href="/#travel">Travel</a>
+        <a class="is-optional" href="/#gallery">Gallery</a>
+        <a class="button is-primary is-sm" href="/rsvp">RSVP</a>
+      </nav>
+    </div>
+  </header>
+</SiteHeader>
+
+<SiteFooter (site: Site)>
+  <footer class="site-footer stack is-sm">
+    <p class="site-footer-names script">{coupleNames(site)}</p>
+    <p><span class="site-footer-when">{formatDate(site.weddingAt, site.timeZone)}</span><span class="site-footer-sep"> · </span><span class="site-footer-when">{site.city}</span></p>
+    <p><a class="site-footer-admin link-muted" href="/admin">For the couple</a></p>
+  </footer>
+</SiteFooter>

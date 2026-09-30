@@ -1,0 +1,55 @@
+import "./style.css";
+import { Site, coupleNames, formatDate, mealLabel } from "#app/shared/services/wedding";
+import { Party, PartyGuest } from "#app/shared/services/guests";
+
+function replyLine(g: PartyGuest): string {
+  if (!g.attending) {
+    return "Regretfully declines";
+  }
+
+  return mealLabel(g.meal) || "Attending";
+}
+
+function anyAttending(party: Party): boolean {
+  return party.guests.some((g) => g.attending);
+}
+
+/**
+ * Sent when a party submits or updates their RSVP.
+ *
+ * @email
+ */
+<html (site: Site, party: Party)>
+  <body class="email rsvp-confirmation">
+    <div class="email-wrap">
+      <p class="eyebrow">{coupleNames(site)} · {formatDate(site.weddingAt, site.timeZone)}</p>
+
+      <h1 e:if={anyAttending(party)}>We can't wait to see you</h1>
+      <h1 e:else>We'll miss you</h1>
+
+      <p e:if={anyAttending(party)}>
+        Thank you for your RSVP, {party.name}. Here is what we have for your party at {site.venue} in {site.city}.
+      </p>
+      <p e:else>
+        Thank you for letting us know, {party.name}. You will be with us in spirit.
+      </p>
+
+      <table class="reply">
+        <tr e:for={g of party.guests}>
+          <td>{g.name}</td>
+          <td class="status">{replyLine(g)}</td>
+        </tr>
+      </table>
+
+      <p e:if={party.song} class="note">Your song request: <strong>{party.song}</strong>. We'll pass it to the band.</p>
+
+      <p class="note">Need to change something? Use your code <strong>{party.code}</strong> any time before the RSVP deadline.</p>
+
+      <p><a class="cta" href={`/rsvp?code=${party.code}`}>Update your RSVP</a></p>
+
+      <div class="email-footer">
+        <p>With love, {coupleNames(site)}</p>
+      </div>
+    </div>
+  </body>
+</html>

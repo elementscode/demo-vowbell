@@ -1,0 +1,394 @@
+import "./style.css";
+import { sql, tx, File, ValidationError } from "@elements/app";
+import favicon from "#app/shared/assets/favicons/favicon.svg";
+import { AdminShell } from "#app/shared/templates/admin-shell";
+import { coupleOrThrow } from "#app/shared/services/auth";
+import { Party, loadParties, rsvpChannel, uniqueCode } from "#app/shared/services/guests";
+import { parseCsv } from "#app/shared/services/csv";
+
+export interface PartyForm {
+  id: string;
+  name: string;
+  email: string;
+  guests: { id: string; name: string }[];
+}
+
+export interface ImportResult {
+  parties: number;
+  guests: number;
+  skipped: number;
+}
+
+interface GuestsPage {
+  parties: Party[];
+  search: string;
+  editing: PartyForm | null;
+  draft: { name: string; email: string; people: string };
+  error: string;
+  file: File | null;
+  imported: ImportResult | null;
+  importError: string;
+  copied: string;
+}
+
+function changed(partyId: string): Party[] {
+  rsvpChannel.notify({ partyId });
+
+  return loadParties();
+}
+
+export function insertParty(name: string, email: string, people: string[]): string {
+  let party = sql<{ id: string }>(
+    `insert into parties (name, code, email) values (${name}, ${uniqueCode()}, ${email}) returning id`,
+  ).firstOrThrow();
+
+  people.forEach((person, i) => {
+    sql(`insert into guests (partyId, position, name) values (${party.id}, ${i}, ${person})`);
+  });
+
+  return party.id;
+}
+
+/** @rpc */
+export function addParty(name: string, email: string, people: string): Party[] {
+  coupleOrThrow();
+
+  let names = people.split("\n").map((p) => p.trim()).filter((p) => p);
+
+  if (!name.trim()) {
+    throw new ValidationError("Give the party a name, like “The Nguyen Family”.");
+  }
+
+  if (names.length === 0) {
+    throw new ValidationError("Add at least one guest, one name per line.");
+  }
+
+  let id = tx(() => insertParty(name.trim(), email.trim().toLowerCase(), names));
+
+  return changed(id);
+}
+
+/** @rpc */
+export function saveParty(form: PartyForm): Party[] {
+  coupleOrThrow();
+
+  let names = form.guests.filter((g) => g.name.trim());
+
+  if (!form.name.trim() || names.length === 0) {
+    throw new ValidationError("A party needs a name and at least one guest.");
+  }
+
+  tx(() => {
+    sql(`update parties set name = ${form.name.trim()}, email = ${form.email.trim().toLowerCase()} where id = ${form.id}`);
+
+    let keep = names.filter((g) => g.id).map((g) => g.id);
+    sql(`delete from guests where partyId = ${form.id} and not (id = any(${keep}::uuid[]))`);
+
+    names.forEach((g, i) => {
+      if (g.id) {
+        sql(`update guests set name = ${g.name.trim()}, position = ${i} where id = ${g.id} and partyId = ${form.id}`);
+      } else {
+        sql(`insert into guests (partyId, position, name) values (${form.id}, ${i}, ${g.name.trim()})`);
+      }
+    });
+  });
+
+  return changed(form.id);
+}
+
+/** @rpc */
+export function deleteParty(id: string): Party[] {
+  coupleOrThrow();
+
+  sql(`delete from parties where id = ${id}`);
+
+  return changed(id);
+}
+
+/** @rpc */
+export function newCodeFor(id: string): Party[] {
+  coupleOrThrow();
+
+  sql(`update parties set code = ${uniqueCode()} where id = ${id}`);
+
+  return changed(id);
+}
+
+/**
+ * Rows of party, guest, email. A header row is skipped, and rows that share a
+ * party name join one invitation. A name already on the list adds to it.
+ */
+export function importCsv(text: string): ImportResult {
+  let rows = parseCsv(text).map((r) => r.map((f) => f.trim()));
+
+  if (rows.length > 0 && /party/i.test(rows[0][0] ?? "") && /guest|name/i.test(rows[0][1] ?? "")) {
+    rows.shift();
+  }
+
+  let groups = new Map<string, { name: string; email: string; people: string[] }>();
+  let skipped = 0;
+
+  for (let [party = "", guest = "", email = ""] of rows) {
+    if (!party || !guest) {
+      skipped++;
+      continue;
+    }
+
+    let key = party.toLowerCase();
+    let group = groups.get(key) ?? { name: party, email: "", people: [] };
+    group.people.push(guest);
+    group.email ||= email.toLowerCase();
+    groups.set(key, group);
+  }
+
+  let result = { parties: 0, guests: 0, skipped };
+
+  tx(() => {
+    for (let g of groups.values()) {
+      let existing = sql<{ id: string; count: number }>(
+        `select p.id, (select count(*)::int from guests where partyId = p.id) as count
+         from parties p where lower(p.name) = ${g.name.toLowerCase()} limit 1`,
+      ).first();
+
+      if (existing) {
+        g.people.forEach((person, i) => {
+          sql(`insert into guests (partyId, position, name) values (${existing!.id}, ${existing!.count + i}, ${person})`);
+        });
+      } else {
+        insertParty(g.name, g.email, g.people);
+        result.parties++;
+      }
+
+      result.guests += g.people.length;
+    }
+  });
+
+  return result;
+}
+
+/** @rpc */
+export function importGuests(file: File): { result: ImportResult; parties: Party[] } {
+  coupleOrThrow();
+
+  if (!file || file.size === 0) {
+    throw new ValidationError("Choose a CSV file first.");
+  }
+
+  let text = new TextDecoder().decode(file.data);
+  let result = importCsv(text);
+
+  if (result.guests === 0) {
+    throw new ValidationError("No guests found. Each row needs a party name and a guest name.");
+  }
+
+  return { result, parties: changed("") };
+}
+
+function matches(p: Party, search: string): boolean {
+  let q = search.trim().toLowerCase();
+
+  return !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q) || p.email.includes(q) || p.guests.some((g) => g.name.toLowerCase().includes(q));
+}
+
+function status(p: Party): string {
+  if (!p.respondedAt) {
+    return "Waiting";
+  }
+
+  return p.guests.some((g) => g.attending) ? "Attending" : "Declined";
+}
+
+function statusClass(p: Party): string {
+  return !p.respondedAt ? "is-warning" : p.guests.some((g) => g.attending) ? "is-success" : "is-danger";
+}
+
+function guestCount(parties: Party[]): number {
+  return parties.reduce((n, p) => n + p.guests.length, 0);
+}
+
+function onAdd(page: GuestsPage) {
+  try {
+    page.parties = addParty(page.draft.name, page.draft.email, page.draft.people);
+    page.draft = { name: "", email: "", people: "" };
+    page.error = "";
+  } catch (err: any) {
+    page.error = err.message;
+  }
+}
+
+function onEdit(page: GuestsPage, p: Party) {
+  page.editing = { id: p.id, name: p.name, email: p.email, guests: p.guests.map((g) => ({ id: g.id, name: g.name })) };
+  page.error = "";
+}
+
+function onSave(page: GuestsPage) {
+  try {
+    page.parties = saveParty(page.editing!);
+    page.editing = null;
+    page.error = "";
+  } catch (err: any) {
+    page.error = err.message;
+  }
+}
+
+function onDelete(page: GuestsPage, p: Party) {
+  if (!confirm(`Remove ${p.name} and their ${p.guests.length} guest(s)?`)) {
+    return;
+  }
+
+  page.parties = deleteParty(p.id);
+  page.editing = null;
+}
+
+function onImport(page: GuestsPage) {
+  try {
+    let out = importGuests(page.file!);
+    page.parties = out.parties;
+    page.imported = out.result;
+    page.importError = "";
+    page.file = null;
+  } catch (err: any) {
+    page.importError = err.message;
+    page.imported = null;
+  }
+}
+
+function onCopy(page: GuestsPage, p: Party) {
+  navigator.clipboard.writeText(`${location.origin}/rsvp?code=${p.code}`);
+  page.copied = p.id;
+  setTimeout(() => onCopied(page, p.id), 1600);
+}
+
+function onCopied(page: GuestsPage, id: string) {
+  if (page.copied === id) {
+    page.copied = "";
+  }
+}
+
+<html lang="en" class="page-admin-guests" (
+  names: string,
+  initial: Party[],
+  private page: GuestsPage = {
+    parties: initial,
+    search: "",
+    editing: null,
+    draft: { name: "", email: "", people: "" },
+    error: "",
+    file: null,
+    imported: null,
+    importError: "",
+    copied: "",
+  },
+)>
+  <head>
+    <title>Guest list · {names}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/svg+xml" href={favicon} />
+  </head>
+  <body>
+    <AdminShell {names} active="guests">
+      <div class="stack is-xl">
+        <div class="guests-head row">
+          <div class="stack is-xs">
+            <h1>Guest list</h1>
+            <p class="text-sm">{guestCount(page.parties)} guests in {page.parties.length} parties. Each party RSVPs with its own code.</p>
+          </div>
+        </div>
+
+        <div class="guests-layout">
+          <div class="stack is-md">
+            <input class="search" type="search" value={page.search} placeholder="Search parties, guests, codes or emails">
+
+            <ul class="party-list">
+              <li e:for={p of page.parties.filter((x) => matches(x, page.search))} class="party">
+                <div class="stack is-xs">
+                  <div class="party-title row">
+                    <strong>{p.name}</strong>
+                    <span class="code">{p.code}</span>
+                    <span class={["pill", statusClass(p)]}>{status(p)}</span>
+                  </div>
+                  <div class="party-people">{p.guests.map((g) => g.name).join(", ")}</div>
+                  <div e:if={p.email} class="party-meta">{p.email}</div>
+                </div>
+
+                <div class="party-actions cluster is-xs">
+                  <button type="button" class="is-sm is-ghost" onclick={() => onCopy(page, p)}>{page.copied === p.id ? "Copied" : "Copy RSVP link"}</button>
+                  <button type="button" class="is-sm" onclick={() => onEdit(page, p)}>Edit</button>
+                </div>
+
+                <form e:if={page.editing?.id === p.id} class="party-edit stack is-md" onsubmit={() => onSave(page)}>
+                  <div class="row is-start cluster is-md">
+                    <div class="field">
+                      <label>Party name</label>
+                      <input value={page.editing!.name} required>
+                    </div>
+                    <div class="field">
+                      <label>Email</label>
+                      <input type="email" value={page.editing!.email}>
+                    </div>
+                  </div>
+
+                  <div class="stack is-sm">
+                    <label>Guests</label>
+                    <div e:for={[i, g] of page.editing!.guests.entries()} e:key={(e: [number, { id: string }]) => e[1].id || `new-${e[0]}`} class="guest-row row">
+                      <input value={g.name} placeholder="Guest name">
+                      <button type="button" class="is-sm is-ghost" onclick={() => page.editing!.guests.splice(i, 1)}>Remove</button>
+                    </div>
+                    <div><button type="button" class="is-sm" onclick={() => page.editing!.guests.push({ id: "", name: "" })}>Add a guest</button></div>
+                  </div>
+
+                  <p e:if={page.error} class="callout is-danger">{page.error}</p>
+
+                  <div class="cluster is-sm">
+                    <button type="submit" class="is-primary is-sm">Save</button>
+                    <button type="button" class="is-sm" onclick={() => page.editing = null}>Cancel</button>
+                    <button type="button" class="is-sm is-ghost" onclick={() => page.parties = newCodeFor(p.id)}>New code</button>
+                    <button type="button" class="is-sm is-danger" onclick={() => onDelete(page, p)}>Remove party</button>
+                  </div>
+                </form>
+              </li>
+            </ul>
+          </div>
+
+          <aside class="side stack is-lg">
+            <form class="card" onsubmit={() => onAdd(page)}>
+              <div class="card-head"><h3>Add a party</h3></div>
+              <div class="card-body stack is-md">
+                <div class="field">
+                  <label for="party-name">Party name</label>
+                  <input id="party-name" value={page.draft.name} placeholder="The Nguyen Family">
+                </div>
+                <div class="field">
+                  <label for="party-email">Email</label>
+                  <input id="party-email" type="email" value={page.draft.email} placeholder="Optional">
+                </div>
+                <div class="field">
+                  <label for="party-people">Guests</label>
+                  <textarea id="party-people" rows={3} value={page.draft.people} placeholder="One name per line"></textarea>
+                </div>
+                <p e:if={page.error && !page.editing} class="callout is-danger">{page.error}</p>
+                <button type="submit" class="is-primary is-block">Add party</button>
+              </div>
+            </form>
+
+            <form class="card" onsubmit={() => onImport(page)}>
+              <div class="card-head"><h3>Import from CSV</h3></div>
+              <div class="card-body stack is-md">
+                <p class="text-sm">One row per guest: party, guest, email. Rows with the same party share an invitation code.</p>
+                <pre class="sample">party,guest,email
+The Nguyen Family,Linh Nguyen,linh@example.com
+The Nguyen Family,Bao Nguyen,</pre>
+                <input type="file" accept=".csv,text/csv" value={page.file}>
+                <p e:if={page.importError} class="callout is-danger">{page.importError}</p>
+                <p e:if={page.imported} class="callout is-success import-result">
+                  Imported {page.imported!.guests} guests into {page.imported!.parties} new parties{page.imported!.skipped ? `, skipped ${page.imported!.skipped} incomplete rows` : ""}.
+                </p>
+                <button type="submit" class="is-block">Import guests</button>
+              </div>
+            </form>
+          </aside>
+        </div>
+      </div>
+    </AdminShell>
+  </body>
+</html>
