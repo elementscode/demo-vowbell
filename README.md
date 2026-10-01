@@ -38,7 +38,7 @@ Vowbell needed a public wedding site, RSVPs by invite code with a confirmation e
 
 ### What the project server gave the agent
 
-The project server runs alongside the agent and answers as soon as a file is saved: it type-checks the templates, TypeScript and SQL, applies migrations and reruns the tests, so every question came back right away and the agent kept building. When the RSVP page passed a value that could be missing, the next save named the problem and the line.
+The project server runs alongside the agent and answers as soon as a file is saved: it type-checks the templates, TypeScript and SQL, applies migrations and reruns the tests, so every question came back right away and the agent kept building.
 
 ### What shipped
 
