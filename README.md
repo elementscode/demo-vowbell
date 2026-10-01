@@ -30,10 +30,15 @@ Vowbell needed a public wedding site, RSVPs by invite code with a confirmation e
 ### What Elements gave the app
 
 - **RSVPs as function calls.** The RSVP page finds a party by its invite code and saves every guest's answer and meal choice in one transaction through an `@rpc` written right in the page's template, then emails a confirmation.
+
 - **A live tracker.** Every RSVP and guest list edit notifies a channel, and the couple's tracker listens on it, so a reply shows up in the counts while they watch. The replies export as CSV.
+
 - **Guest import.** The guests page sends a CSV file to an rpc that reads the rows into parties and gives each one a six-character invite code from an alphabet chosen to read cleanly off paper.
+
 - **Site editing and photos.** The couple edits the story, events, hotels and gallery through rpcs. Photo uploads arrive as `File` values and are served under their content hash, and the seed photos and display font ship as assets.
+
 - **Data from SQL files.** Two migrations define the wedding and seed the couple, their story and gallery, events, hotels, and 40 parties with 80 guests, about half of whom have replied.
+
 - **Sessions.** Every admin rpc and the CSV export check that the signed-in user is one of the couple.
 
 ### What the project server gave the agent
