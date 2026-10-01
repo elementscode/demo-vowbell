@@ -36,9 +36,13 @@ Vowbell needed a public wedding site, RSVPs by invite code with a confirmation e
 - **Data from SQL files.** Two migrations define the wedding and seed the couple, their story and gallery, events, hotels, and 40 parties with 80 guests, about half of whom have replied.
 - **Sessions.** Every admin rpc and the CSV export start with `coupleOrThrow` in `app/shared/services/auth.ts`, which checks the signed-in user is one of the couple.
 
-### What the agent got from the tooling
+### What the project server gave the agent
 
-The agent ran 22 builds in 23 minutes. It checked its work after each edit and kept going. Along the way the build caught a possibly null value passed in the RSVP template, pointed at its file and line. The agent read the manual for each part as it reached it, 49 pages from `recipes/live-dashboard` and `recipes/database-assets` to `style/components/callout`, then wrote 18 tests. In a real browser it drove the RSVP flow, signed in to watch the tracker update live and export the CSV, and checked its pages at phone width.
+The project server runs alongside the agent and answers as soon as a file is saved: it type-checks the templates, TypeScript and SQL, applies migrations and reruns the tests, so every question came back right away and the agent kept building. When the RSVP page passed a value that could be missing, the next save named the problem and the line.
+
+### What shipped
+
+The app type-checks with zero errors and all 18 tests pass. During the build the agent drove the RSVP flow and watched the couple's tracker update live. Every page was checked on desktop and phone before publishing, and the repo was installed fresh from GitHub and run before the demo went live.
 
 Start in `app/pages/rsvp/template.ehtml`.
 
