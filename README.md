@@ -42,7 +42,7 @@ The project server runs alongside the agent and answers as soon as a file is sav
 
 ### What shipped
 
-The app type-checks with zero errors and all 18 tests pass. During the build the agent drove the RSVP flow and watched the couple's tracker update live. Every page was checked on desktop and phone before publishing.
+The app type-checks with zero errors and all 18 tests pass. Every page works on desktop and phone, and a guest's RSVP shows up on the couple's tracker as it arrives.
 
 Start in `app/pages/rsvp/template.ehtml`.
 
