@@ -23,6 +23,25 @@ app.
 elements create vowbell -scaffold=elementscode/demo-vowbell
 ```
 
+## How it's built
+
+Vowbell needed a public wedding site, RSVPs by invite code with a confirmation email, a guest list the couple can import from a spreadsheet, and a tracker that fills in as replies arrive. Each of those is a part of Elements, so the agent spent its 23 minutes on the wedding itself.
+
+### What Elements gave the app
+
+- **RSVPs as function calls.** `submitRsvp` is an `@rpc` written right in `app/pages/rsvp/template.ehtml`. It finds the party by its invite code, saves every guest's answer and meal choice in one transaction, and emails the `rsvp-confirmation` template.
+- **A live tracker.** Each RSVP and guest list edit notifies an `rsvpChannel` in `app/shared/services/guests.ts`. The couple's tracker at `/admin` listens on it, so a reply shows up in the counts while they watch, and `/admin/rsvps.csv` exports the replies.
+- **Guest import.** The guests page sends a CSV file to `importGuests`, an rpc that reads the rows into parties and gives each party a six-character invite code from an alphabet chosen to read cleanly off paper.
+- **Site editing and photos.** `app/pages/admin-site/services.ts` holds the rpcs the couple uses to edit the story, events, hotels and gallery. `uploadPhotos` takes `File` values, and `app/routes/photos.ts` serves each one under its content hash. The seed photos and the display font are assets in `app/shared/assets/`.
+- **Data from SQL files.** Two migrations define the wedding and seed the couple, their story and gallery, events, hotels, and 40 parties with 80 guests, about half of whom have replied.
+- **Sessions.** Every admin rpc and the CSV export start with `coupleOrThrow` in `app/shared/services/auth.ts`, which checks the signed-in user is one of the couple.
+
+### What the agent got from the tooling
+
+The agent ran 22 builds in 23 minutes. By the build's own timer, the median build finished in 37 milliseconds, so it checked its work after each edit and kept going. Along the way the build caught a possibly null value passed in the RSVP template, pointed at its file and line. The agent read the manual for each part as it reached it, 49 pages from `recipes/live-dashboard` and `recipes/database-assets` to `style/components/callout`, then wrote 18 tests. In a real browser it drove the RSVP flow, signed in to watch the tracker update live and export the CSV, and checked its pages at phone width.
+
+Start in `app/pages/rsvp/template.ehtml`.
+
 ## What's built
 
 - **Home page (`/`):** the couple's names, date and place over a cover photo, a
