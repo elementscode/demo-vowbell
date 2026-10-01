@@ -38,7 +38,7 @@ Vowbell needed a public wedding site, RSVPs by invite code with a confirmation e
 
 ### What the agent got from the tooling
 
-The agent ran 22 builds in 23 minutes. By the build's own timer, the median build finished in 37 milliseconds, so it checked its work after each edit and kept going. Along the way the build caught a possibly null value passed in the RSVP template, pointed at its file and line. The agent read the manual for each part as it reached it, 49 pages from `recipes/live-dashboard` and `recipes/database-assets` to `style/components/callout`, then wrote 18 tests. In a real browser it drove the RSVP flow, signed in to watch the tracker update live and export the CSV, and checked its pages at phone width.
+The agent ran 22 builds in 23 minutes. It checked its work after each edit and kept going. Along the way the build caught a possibly null value passed in the RSVP template, pointed at its file and line. The agent read the manual for each part as it reached it, 49 pages from `recipes/live-dashboard` and `recipes/database-assets` to `style/components/callout`, then wrote 18 tests. In a real browser it drove the RSVP flow, signed in to watch the tracker update live and export the CSV, and checked its pages at phone width.
 
 Start in `app/pages/rsvp/template.ehtml`.
 
