@@ -10,9 +10,6 @@ A wedding site with a countdown, RSVPs by invite code with meal choices, CSV gue
 
 ## Agent specs
 
-What one run of the prompt below took, from an empty Elements project to this
-app.
-
 - **Agent:** Claude Code, Opus 5.5 Medium
 - **Time:** 23 min
 - **Cost:** $7.87 at API rates, September 2026
@@ -84,28 +81,7 @@ emails are written to the server log instead of being sent.
 
 The seed photos are CC0 images from Wikimedia Commons.
 
-## The prompt
-
-```text
-Build a wedding website named vowbell.
-
-GUEST
-- A beautiful home page: the couple's names, date, a countdown, the story,
-  schedule of events, travel and hotel info, and a photo gallery.
-- RSVP with a code from the invitation: attending or not for each person in
-  the party, meal choice, dietary notes, and a song request.
-- A confirmation email.
-
-COUPLE (admin account)
-- Edit the site's content and photos.
-- Guest list with parties and invite codes; import from CSV.
-- RSVP tracker: attending, declined, waiting, meal counts, and a CSV export.
-
-Seed the couple, the site content with photos, and eighty guests in forty
-parties, about half responded. Show the admin login on the sign-in page.
-
-The RSVP tracker updates in real time.
-```
+**Demo:** [Vowbell](https://elements.dev/demos/01a0f429-2d0f-7fde-8ea7-775ea6066cd6)
 
 ## License
 
