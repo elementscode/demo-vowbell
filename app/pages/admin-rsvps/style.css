@@ -30,10 +30,6 @@
   gap: var(--space-4);
 }
 
-.stat {
-  padding: var(--space-5);
-}
-
 .stat-label {
   margin: 0;
   font-size: var(--text-xs);
@@ -69,6 +65,7 @@
   color: var(--warning);
 }
 
+/* Attending and declined as two segments of one bar. */
 .progress-bar {
   display: flex;
   height: 0.5rem;
@@ -118,19 +115,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-.meal-counts .bar {
+.meal-bar {
+  --progress-color: var(--accent);
   grid-column: 1 / -1;
-  height: 0.375rem;
-  border-radius: var(--radius-full);
-  background: var(--bg-muted);
-  overflow: hidden;
-}
-
-.meal-counts .bar span {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-  transition: width 400ms ease;
 }
 
 .notes {
@@ -156,97 +143,6 @@
   font-size: var(--text-xs);
 }
 
-.toolbar {
-  min-width: 0;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-}
-
-.toolbar input {
-  width: 16rem;
-}
-
-.parties {
-  width: 100%;
-}
-
-.parties td {
-  vertical-align: top;
-}
-
-.party-name {
-  font-weight: var(--weight-medium);
-}
-
-.party-code {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--ink-dim);
-}
-
-.party-guests {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.party-guests li {
-  display: flex;
-  gap: var(--space-2);
-  align-items: baseline;
-  font-size: var(--text-sm);
-}
-
-.party-guests .meal {
-  color: var(--ink-dim);
-}
-
-.mark {
-  display: inline-block;
-  width: 1rem;
-  text-align: center;
-  font-weight: var(--weight-bold);
-}
-
-.mark.is-yes {
-  color: var(--success);
-}
-
-.mark.is-no {
-  color: var(--danger);
-}
-
-.mark.is-waiting {
-  color: var(--ink-faint);
-}
-
-.party-when {
-  font-size: var(--text-sm);
-  color: var(--ink-dim);
-  white-space: nowrap;
-}
-
-.parties tr.is-fresh td {
-  animation: fresh 2.4s ease-out;
-}
-
-@keyframes fresh {
-  from {
-    background: var(--success-soft);
-  }
-
-  to {
-    background: transparent;
-  }
-}
-
-.empty {
-  padding: var(--space-8);
-  text-align: center;
-  color: var(--ink-dim);
-}
-
 @media (max-width: 60rem) {
   .stats {
     grid-template-columns: repeat(2, 1fr);
@@ -258,67 +154,8 @@
 }
 
 @media (max-width: 45rem) {
-  .toolbar input {
-    width: 100%;
-  }
-
-  .parties .is-optional {
-    display: none;
-  }
-
-  .table-scroll {
+  .filters {
+    --control-padding-x: var(--space-3);
     overflow-x: auto;
-  }
-}
-
-@media (max-width: 45rem) {
-  .toolbar .tab-list {
-    width: 100%;
-    overflow-x: auto;
-  }
-
-  .toolbar .tab {
-    white-space: nowrap;
-  }
-
-  .table-scroll {
-    max-width: 100%;
-  }
-}
-
-/* On a phone each party is a stacked row: name and reply time, then guests. */
-@media (max-width: 45rem) {
-  .parties thead {
-    display: none;
-  }
-
-  .parties,
-  .parties tbody {
-    display: block;
-  }
-
-  .parties tr {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: var(--space-2) var(--space-3);
-    padding: var(--space-3) var(--space-1);
-    border-top: 1px solid var(--rule-soft);
-  }
-
-  .parties td {
-    display: block;
-    padding: 0;
-    border: 0;
-  }
-
-  .parties td:nth-child(2) {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-
-  .parties td:nth-child(4) {
-    grid-column: 2;
-    grid-row: 1;
-    text-align: right;
   }
 }

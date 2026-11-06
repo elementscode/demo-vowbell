@@ -1,6 +1,13 @@
 import "./style.css";
 import type { Listener } from "@elements/app";
 import favicon from "#app/shared/assets/favicons/favicon.svg";
+import { Badge } from "@elements/ui/badge";
+import { Button } from "@elements/ui/button";
+import { Card, CardContent } from "@elements/ui/card";
+import { DataTable, DataTableColumn, DataRow } from "@elements/ui/data-table";
+import { Empty } from "@elements/ui/empty";
+import { Progress } from "@elements/ui/progress";
+import { Tabs, TabsList, TabsTrigger } from "@elements/ui/tabs";
 import { AdminShell } from "#app/shared/templates/admin-shell";
 import { coupleOrThrow } from "#app/shared/services/auth";
 import { MEALS, mealLabel } from "#app/shared/services/wedding";
@@ -59,13 +66,11 @@ export function partyStatus(p: Party): Filter {
   return p.guests.some((g) => g.attending) ? "attending" : "declined";
 }
 
+/** The parties under the active filter, by name; the table sorts them by reply. */
 export function visibleParties(t: Tracker): Party[] {
-  let q = t.search.trim().toLowerCase();
-
   return t.parties
     .filter((p) => t.filter === "all" || partyStatus(p) === t.filter)
-    .filter((p) => !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q) || p.guests.some((g) => g.name.toLowerCase().includes(q)))
-    .sort((a, b) => +(b.respondedAt ?? 0) - +(a.respondedAt ?? 0) || a.name.localeCompare(b.name));
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function percent(n: number, of: number): string {
@@ -84,13 +89,47 @@ function mark(attending: boolean | null): string {
   return attending === true ? "✓" : attending === false ? "✕" : "·";
 }
 
-function markClass(attending: boolean | null): string {
-  return attending === true ? "is-yes" : attending === false ? "is-no" : "is-waiting";
+function guestLine(g: Party["guests"][number]): string {
+  return `${mark(g.attending)} ${g.name}${g.attending ? ` (${mealLabel(g.meal)})` : ""}`;
 }
+
+const COLUMNS: DataTableColumn[] = [
+  {
+    id: "party",
+    header: "Party",
+    rowHeader: true,
+    value: (p: DataRow) => `${p.name} ${p.code}`,
+    cell: (p: DataRow) => ({ text: p.name, description: p.code }),
+  },
+  {
+    id: "guests",
+    header: "Guests",
+    wrap: true,
+    size: 400,
+    sortable: false,
+    value: (p: DataRow) => (p as Party).guests.map(guestLine).join(", "),
+  },
+  { key: "message", header: "Note", wrap: true, size: 340, sortable: false },
+  {
+    id: "replied",
+    header: "Replied",
+    type: "datetime",
+    value: (p: DataRow) => p.respondedAt,
+    sortUndefined: "last",
+    cell: (p: DataRow) => p.respondedAt ? when(p.respondedAt) : { text: "Waiting", tone: "warning" },
+  },
+];
 
 function onNotify(t: Tracker, partyId: string) {
   t.parties = fetchParties();
   t.fresh = partyId;
+  setTimeout(() => onFreshDone(t, partyId), 2400);
+}
+
+function onFreshDone(t: Tracker, partyId: string) {
+  if (t.fresh === partyId) {
+    t.fresh = "";
+  }
 }
 
 function onInit(listener: Listener<{ partyId: string }>, t: Tracker) {
@@ -128,54 +167,60 @@ function filterCount(t: Tracker, f: Filter): number {
             <p class="text-sm">{trackerStats(t.parties).partiesReplied} of {trackerStats(t.parties).parties} invitations answered</p>
           </div>
           <div class="cluster is-sm">
-            <span class="pill is-success live"><span class="pill-dot"></span>Live</span>
-            <a class="button is-sm" href="/admin/rsvps.csv" download="rsvps.csv">Export CSV</a>
+            <Badge variant="success" dot class="live">Live</Badge>
+            <Button size="sm" href="/admin/rsvps.csv" attrs={{ download: "rsvps.csv" }}>Export CSV</Button>
           </div>
         </div>
 
         <div class="stats">
-          <div class="stat card">
-            <p class="stat-label">Invited</p>
-            <p class="stat-value">{trackerStats(t.parties).invited}</p>
-            <div class="progress-bar" aria-hidden="true">
-              <span class="is-attending" style={{ width: percent(trackerStats(t.parties).attending, trackerStats(t.parties).invited) }}></span>
-              <span class="is-declined" style={{ width: percent(trackerStats(t.parties).declined, trackerStats(t.parties).invited) }}></span>
-            </div>
-          </div>
-          <div class="stat card is-attending">
-            <p class="stat-label">Attending</p>
-            <p class="stat-value">{trackerStats(t.parties).attending}</p>
-            <p class="stat-note">guests coming</p>
-          </div>
-          <div class="stat card is-declined">
-            <p class="stat-label">Declined</p>
-            <p class="stat-value">{trackerStats(t.parties).declined}</p>
-            <p class="stat-note">can't make it</p>
-          </div>
-          <div class="stat card is-waiting">
-            <p class="stat-label">Waiting</p>
-            <p class="stat-value">{trackerStats(t.parties).waiting}</p>
-            <p class="stat-note">haven't replied</p>
-          </div>
+          <Card size="sm" class="stat">
+            <CardContent>
+              <p class="stat-label">Invited</p>
+              <p class="stat-value">{trackerStats(t.parties).invited}</p>
+              <div class="progress-bar" aria-hidden="true">
+                <span class="is-attending" style={{ width: percent(trackerStats(t.parties).attending, trackerStats(t.parties).invited) }}></span>
+                <span class="is-declined" style={{ width: percent(trackerStats(t.parties).declined, trackerStats(t.parties).invited) }}></span>
+              </div>
+            </CardContent>
+          </Card>
+          <Card size="sm" class="stat is-attending">
+            <CardContent>
+              <p class="stat-label">Attending</p>
+              <p class="stat-value">{trackerStats(t.parties).attending}</p>
+              <p class="stat-note">guests coming</p>
+            </CardContent>
+          </Card>
+          <Card size="sm" class="stat is-declined">
+            <CardContent>
+              <p class="stat-label">Declined</p>
+              <p class="stat-value">{trackerStats(t.parties).declined}</p>
+              <p class="stat-note">can't make it</p>
+            </CardContent>
+          </Card>
+          <Card size="sm" class="stat is-waiting">
+            <CardContent>
+              <p class="stat-label">Waiting</p>
+              <p class="stat-value">{trackerStats(t.parties).waiting}</p>
+              <p class="stat-note">haven't replied</p>
+            </CardContent>
+          </Card>
         </div>
 
         <div class="meals-row">
-          <div class="card">
-            <div class="card-head"><h3>Meal counts</h3></div>
-            <div class="card-body">
+          <Card title="Meal counts">
+            <CardContent>
               <ul class="meal-counts">
                 <li e:for={m of trackerStats(t.parties).meals} e:key={(m: { value: string }) => m.value}>
                   <span>{m.label}</span>
                   <strong>{m.count}</strong>
-                  <div class="bar"><span style={{ width: percent(m.count, trackerStats(t.parties).attending) }}></span></div>
+                  <Progress class="meal-bar" value={m.count} max={Math.max(trackerStats(t.parties).attending, 1)} size="lg" attrs={{ "aria-label": `${m.label}: ${m.count}` }} />
                 </li>
               </ul>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          <div class="card">
-            <div class="card-head"><h3>Dietary notes</h3></div>
-            <div class="card-body">
+          <Card title="Dietary notes">
+            <CardContent>
               <ul e:if={trackerStats(t.parties).dietary.length > 0} class="notes">
                 <li e:for={d of trackerStats(t.parties).dietary} e:key={(d: { who: string }) => d.who}>
                   <span class="who">{d.who}</span>
@@ -183,12 +228,11 @@ function filterCount(t: Tracker, f: Filter): number {
                 </li>
               </ul>
               <p e:else class="text-sm">None yet.</p>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          <div class="card">
-            <div class="card-head"><h3>Song requests</h3></div>
-            <div class="card-body">
+          <Card title="Song requests">
+            <CardContent>
               <ul e:if={trackerStats(t.parties).songs.length > 0} class="notes">
                 <li e:for={s of trackerStats(t.parties).songs} e:key={(s: { who: string }) => s.who}>
                   <span class="who">{s.who}</span>
@@ -196,55 +240,39 @@ function filterCount(t: Tracker, f: Filter): number {
                 </li>
               </ul>
               <p e:else class="text-sm">None yet.</p>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
 
         <div class="stack is-md">
-          <div class="toolbar row">
-            <div class="tab-list">
-              <button e:for={f of FILTERS} e:key={(f: { key: string }) => f.key} type="button" class={["tab", t.filter === f.key && "is-active"]} onclick={() => t.filter = f.key}>
+          <Tabs value={t.filter} class="filters">
+            <TabsList label="Filter parties">
+              <TabsTrigger e:for={f of FILTERS} e:key={(f: { key: string }) => f.key} value={f.key}>
                 {f.label} <span class="text-xs">{filterCount(t, f.key)}</span>
-              </button>
-            </div>
-            <input type="search" value={t.search} placeholder="Search names or codes">
-          </div>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-          <div class="table-scroll">
-            <table class="parties">
-              <thead>
-                <tr>
-                  <th>Party</th>
-                  <th>Guests</th>
-                  <th class="is-optional">Note</th>
-                  <th>Replied</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr e:for={p of visibleParties(t)} class={[t.fresh === p.id && "is-fresh"]}>
-                  <td>
-                    <div class="party-name">{p.name}</div>
-                    <div class="party-code">{p.code}</div>
-                  </td>
-                  <td>
-                    <ul class="party-guests">
-                      <li e:for={g of p.guests}>
-                        <span class={["mark", markClass(g.attending)]}>{mark(g.attending)}</span>
-                        <span>{g.name}</span>
-                        <span e:if={g.attending} class="meal">{mealLabel(g.meal)}</span>
-                      </li>
-                    </ul>
-                  </td>
-                  <td class="is-optional text-sm">{p.message}</td>
-                  <td>
-                    <span e:if={p.respondedAt} class="party-when">{when(p.respondedAt)}</span>
-                    <span e:else class="pill is-warning">Waiting</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <p e:if={visibleParties(t).length === 0} class="empty">No parties match.</p>
-          </div>
+          <DataTable class="parties"
+                     data={visibleParties(t)}
+                     columns={COLUMNS}
+                     label="Parties"
+                     search={t.search}
+                     searchPlaceholder="Search names or codes"
+                     sorting={[{ id: "replied", desc: true }]}
+                     columnMenu={false}
+                     filterable={false}
+                     exportable={false}
+                     hideable={false}
+                     reorderable={false}
+                     resizable={false}
+                     pinnable={false}
+                     groupable={false}
+                     pagination={false}
+                     footer={false}
+                     rowTone={(p: DataRow) => p.id === t.fresh ? "success" : ""}>
+            <Empty slot="empty" description="No parties match." />
+          </DataTable>
         </div>
       </div>
     </AdminShell>

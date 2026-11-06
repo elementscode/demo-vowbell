@@ -37,8 +37,8 @@ test("rsvp tracker", () => {
   test("status and filtering", () => {
     equal(parties.map(partyStatus), ["attending", "declined", "waiting"]);
     equal(visibleParties({ parties, filter: "waiting", search: "", fresh: "" }).map((p) => p.name), ["cho"]);
-    equal(visibleParties({ parties, filter: "all", search: "BELL", fresh: "" }).map((p) => p.name), ["bell"]);
-    equal(visibleParties({ parties, filter: "all", search: "", fresh: "" })[0].name, "bell");
+    equal(visibleParties({ parties, filter: "declined", search: "", fresh: "" }).map((p) => p.name), ["bell"]);
+    equal(visibleParties({ parties, filter: "all", search: "", fresh: "" }).map((p) => p.name), ["ames", "bell", "cho"]);
   });
 
   test("the rpc is for the couple only", () => {
