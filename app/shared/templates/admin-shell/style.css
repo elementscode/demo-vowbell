@@ -50,3 +50,11 @@
     overflow-x: auto;
   }
 }
+
+/* Fields side by side, wrapping to a column when the row runs out of room. */
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--space-4);
+  align-items: start;
+}

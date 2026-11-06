@@ -3,6 +3,7 @@ import { redirect } from "@elements/app";
 import { Badge } from "@elements/ui/badge";
 import { Button } from "@elements/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@elements/ui/tabs";
+import { Toaster } from "@elements/ui/toast";
 import { signout } from "#app/shared/services/auth";
 
 const TABS = [
@@ -40,4 +41,6 @@ function onSignout() {
   <main class="admin-main page-shell is-wide">
     <slot/>
   </main>
+
+  <Toaster richColors />
 </AdminShell>

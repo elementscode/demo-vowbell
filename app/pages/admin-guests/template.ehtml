@@ -1,6 +1,15 @@
 import "./style.css";
 import { sql, tx, File, ValidationError } from "@elements/app";
 import favicon from "#app/shared/assets/favicons/favicon.svg";
+import { Alert } from "@elements/ui/alert";
+import { AlertDialog, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@elements/ui/alert-dialog";
+import { Badge, BadgeVariant } from "@elements/ui/badge";
+import { Button } from "@elements/ui/button";
+import { Card, CardContent } from "@elements/ui/card";
+import { Field } from "@elements/ui/field";
+import { Input } from "@elements/ui/input";
+import { Textarea } from "@elements/ui/textarea";
+import { toast } from "@elements/ui/toast";
 import { AdminShell } from "#app/shared/templates/admin-shell";
 import { coupleOrThrow } from "#app/shared/services/auth";
 import { Party, loadParties, rsvpChannel, uniqueCode } from "#app/shared/services/guests";
@@ -25,10 +34,9 @@ interface GuestsPage {
   editing: PartyForm | null;
   draft: { name: string; email: string; people: string };
   error: string;
-  file: File | null;
+  files: File[];
   imported: ImportResult | null;
   importError: string;
-  copied: string;
 }
 
 function changed(partyId: string): Party[] {
@@ -198,8 +206,8 @@ function status(p: Party): string {
   return p.guests.some((g) => g.attending) ? "Attending" : "Declined";
 }
 
-function statusClass(p: Party): string {
-  return !p.respondedAt ? "is-warning" : p.guests.some((g) => g.attending) ? "is-success" : "is-danger";
+function statusVariant(p: Party): BadgeVariant {
+  return !p.respondedAt ? "warning" : p.guests.some((g) => g.attending) ? "success" : "danger";
 }
 
 function guestCount(parties: Party[]): number {
@@ -232,37 +240,26 @@ function onSave(page: GuestsPage) {
 }
 
 function onDelete(page: GuestsPage, p: Party) {
-  if (!confirm(`Remove ${p.name} and their ${p.guests.length} guest(s)?`)) {
-    return;
-  }
-
   page.parties = deleteParty(p.id);
   page.editing = null;
 }
 
 function onImport(page: GuestsPage) {
   try {
-    let out = importGuests(page.file!);
+    let out = importGuests(page.files[0]);
     page.parties = out.parties;
     page.imported = out.result;
     page.importError = "";
-    page.file = null;
+    page.files = [];
   } catch (err: any) {
     page.importError = err.message;
     page.imported = null;
   }
 }
 
-function onCopy(page: GuestsPage, p: Party) {
+function onCopy(p: Party) {
   navigator.clipboard.writeText(`${location.origin}/rsvp?code=${p.code}`);
-  page.copied = p.id;
-  setTimeout(() => onCopied(page, p.id), 1600);
-}
-
-function onCopied(page: GuestsPage, id: string) {
-  if (page.copied === id) {
-    page.copied = "";
-  }
+  toast.success("RSVP link copied", { description: p.name });
 }
 
 <html lang="en" class="page-admin-guests" (
@@ -274,10 +271,9 @@ function onCopied(page: GuestsPage, id: string) {
     editing: null,
     draft: { name: "", email: "", people: "" },
     error: "",
-    file: null,
+    files: [],
     imported: null,
     importError: "",
-    copied: "",
   },
 )>
   <head>
@@ -297,7 +293,7 @@ function onCopied(page: GuestsPage, id: string) {
 
         <div class="guests-layout">
           <div class="stack is-md">
-            <input class="search" type="search" value={page.search} placeholder="Search parties, guests, codes or emails">
+            <Input class="search" type="search" value={page.search} placeholder="Search parties, guests, codes or emails" attrs={{ "aria-label": "Search the guest list" }} />
 
             <ul class="party-list">
               <li e:for={p of page.parties.filter((x) => matches(x, page.search))} class="party">
@@ -305,45 +301,49 @@ function onCopied(page: GuestsPage, id: string) {
                   <div class="party-title row">
                     <strong>{p.name}</strong>
                     <span class="code">{p.code}</span>
-                    <span class={["pill", statusClass(p)]}>{status(p)}</span>
+                    <Badge variant={statusVariant(p)}>{status(p)}</Badge>
                   </div>
                   <div class="party-people">{p.guests.map((g) => g.name).join(", ")}</div>
                   <div e:if={p.email} class="party-meta">{p.email}</div>
                 </div>
 
                 <div class="party-actions cluster is-xs">
-                  <button type="button" class="is-sm is-ghost" onclick={() => onCopy(page, p)}>{page.copied === p.id ? "Copied" : "Copy RSVP link"}</button>
-                  <button type="button" class="is-sm" onclick={() => onEdit(page, p)}>Edit</button>
+                  <Button size="sm" variant="ghost" onclick={() => onCopy(p)}>Copy RSVP link</Button>
+                  <Button size="sm" onclick={() => onEdit(page, p)}>Edit</Button>
                 </div>
 
                 <form e:if={page.editing?.id === p.id} class="party-edit stack is-md" onsubmit={() => onSave(page)}>
-                  <div class="row is-start cluster is-md">
-                    <div class="field">
-                      <label>Party name</label>
-                      <input value={page.editing!.name} required>
-                    </div>
-                    <div class="field">
-                      <label>Email</label>
-                      <input type="email" value={page.editing!.email}>
-                    </div>
+                  <div class="field-row">
+                    <Field label="Party name" required>
+                      <Input value={page.editing!.name} required />
+                    </Field>
+                    <Field label="Email">
+                      <Input type="email" value={page.editing!.email} />
+                    </Field>
                   </div>
 
                   <div class="stack is-sm">
-                    <label>Guests</label>
+                    <label class="label">Guests</label>
                     <div e:for={[i, g] of page.editing!.guests.entries()} e:key={(e: [number, { id: string }]) => e[1].id || `new-${e[0]}`} class="guest-row row">
-                      <input value={g.name} placeholder="Guest name">
-                      <button type="button" class="is-sm is-ghost" onclick={() => page.editing!.guests.splice(i, 1)}>Remove</button>
+                      <Input value={g.name} placeholder="Guest name" attrs={{ "aria-label": "Guest name" }} />
+                      <Button size="sm" variant="ghost" onclick={() => page.editing!.guests.splice(i, 1)}>Remove</Button>
                     </div>
-                    <div><button type="button" class="is-sm" onclick={() => page.editing!.guests.push({ id: "", name: "" })}>Add a guest</button></div>
+                    <div><Button size="sm" onclick={() => page.editing!.guests.push({ id: "", name: "" })}>Add a guest</Button></div>
                   </div>
 
-                  <p e:if={page.error} class="callout is-danger">{page.error}</p>
+                  <Alert e:if={page.error} variant="danger" description={page.error} />
 
                   <div class="cluster is-sm">
-                    <button type="submit" class="is-primary is-sm">Save</button>
-                    <button type="button" class="is-sm" onclick={() => page.editing = null}>Cancel</button>
-                    <button type="button" class="is-sm is-ghost" onclick={() => page.parties = newCodeFor(p.id)}>New code</button>
-                    <button type="button" class="is-sm is-danger" onclick={() => onDelete(page, p)}>Remove party</button>
+                    <Button type="submit" variant="primary" size="sm">Save</Button>
+                    <Button size="sm" onclick={() => page.editing = null}>Cancel</Button>
+                    <Button size="sm" variant="ghost" onclick={() => page.parties = newCodeFor(p.id)}>New code</Button>
+                    <AlertDialog title={`Remove ${p.name} and their ${p.guests.length} guest(s)?`}>
+                      <Button slot="trigger" size="sm" variant="danger">Remove party</Button>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction variant="danger" onclick={() => onDelete(page, p)}>Remove party</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialog>
                   </div>
                 </form>
               </li>
@@ -351,40 +351,37 @@ function onCopied(page: GuestsPage, id: string) {
           </div>
 
           <aside class="side stack is-lg">
-            <form class="card" onsubmit={() => onAdd(page)}>
-              <div class="card-head"><h3>Add a party</h3></div>
-              <div class="card-body stack is-md">
-                <div class="field">
-                  <label for="party-name">Party name</label>
-                  <input id="party-name" value={page.draft.name} placeholder="The Nguyen Family">
-                </div>
-                <div class="field">
-                  <label for="party-email">Email</label>
-                  <input id="party-email" type="email" value={page.draft.email} placeholder="Optional">
-                </div>
-                <div class="field">
-                  <label for="party-people">Guests</label>
-                  <textarea id="party-people" rows={3} value={page.draft.people} placeholder="One name per line"></textarea>
-                </div>
-                <p e:if={page.error && !page.editing} class="callout is-danger">{page.error}</p>
-                <button type="submit" class="is-primary is-block">Add party</button>
-              </div>
+            <form onsubmit={() => onAdd(page)}>
+              <Card title="Add a party">
+                <CardContent class="stack is-md">
+                  <Field label="Party name">
+                    <Input value={page.draft.name} placeholder="The Nguyen Family" />
+                  </Field>
+                  <Field label="Email">
+                    <Input type="email" value={page.draft.email} placeholder="Optional" />
+                  </Field>
+                  <Field label="Guests">
+                    <Textarea rows={3} value={page.draft.people} placeholder="One name per line" />
+                  </Field>
+                  <Alert e:if={page.error && !page.editing} variant="danger" description={page.error} />
+                  <Button type="submit" variant="primary" block>Add party</Button>
+                </CardContent>
+              </Card>
             </form>
 
-            <form class="card" onsubmit={() => onImport(page)}>
-              <div class="card-head"><h3>Import from CSV</h3></div>
-              <div class="card-body stack is-md">
-                <p class="text-sm">One row per guest: party, guest, email. Rows with the same party share an invitation code.</p>
-                <pre class="sample">party,guest,email
+            <form onsubmit={() => onImport(page)}>
+              <Card title="Import from CSV">
+                <CardContent class="stack is-md">
+                  <p class="text-sm">One row per guest: party, guest, email. Rows with the same party share an invitation code.</p>
+                  <pre class="sample">party,guest,email
 The Nguyen Family,Linh Nguyen,linh@example.com
 The Nguyen Family,Bao Nguyen,</pre>
-                <input type="file" accept=".csv,text/csv" value={page.file}>
-                <p e:if={page.importError} class="callout is-danger">{page.importError}</p>
-                <p e:if={page.imported} class="callout is-success import-result">
-                  Imported {page.imported!.guests} guests into {page.imported!.parties} new parties{page.imported!.skipped ? `, skipped ${page.imported!.skipped} incomplete rows` : ""}.
-                </p>
-                <button type="submit" class="is-block">Import guests</button>
-              </div>
+                  <Input type="file" files={page.files} attrs={{ accept: ".csv,text/csv", "aria-label": "CSV file" }} />
+                  <Alert e:if={page.importError} variant="danger" description={page.importError} />
+                  <Alert e:if={page.imported} variant="success" role="status" description={`Imported ${page.imported!.guests} guests into ${page.imported!.parties} new parties${page.imported!.skipped ? `, skipped ${page.imported!.skipped} incomplete rows` : ""}.`} />
+                  <Button type="submit" block>Import guests</Button>
+                </CardContent>
+              </Card>
             </form>
           </aside>
         </div>
