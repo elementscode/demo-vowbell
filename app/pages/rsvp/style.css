@@ -63,62 +63,10 @@
   gap: var(--space-3);
 }
 
-.choice button {
-  height: auto;
-  padding: var(--space-4);
-  font-size: var(--text-base);
-}
-
-.choice button.is-active {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--accent-deep);
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
-
 .meals {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
   gap: var(--space-3);
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.meals legend {
-  margin-bottom: var(--space-2);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-}
-
-.meal {
-  display: flex;
-  gap: var(--space-3);
-  align-items: flex-start;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-lg);
-  cursor: pointer;
-}
-
-.meal:has(input:checked) {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.meal input {
-  margin-top: 0.2em;
-}
-
-.meal-label {
-  display: block;
-  font-weight: var(--weight-medium);
-}
-
-.meal-note {
-  display: block;
-  font-size: var(--text-sm);
-  color: var(--ink-dim);
 }
 
 .done {
@@ -136,13 +84,7 @@
 }
 
 .summary {
-  width: 100%;
   text-align: left;
-}
-
-.summary td:last-child {
-  text-align: right;
-  color: var(--ink-soft);
 }
 
 .replied {
@@ -152,5 +94,9 @@
 @media (max-width: 45rem) {
   .rsvp-main {
     padding-top: var(--space-6);
+  }
+
+  .choice {
+    grid-template-columns: 1fr;
   }
 }

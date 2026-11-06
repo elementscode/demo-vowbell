@@ -5,6 +5,15 @@ import { SiteHeader, SiteFooter } from "#app/shared/templates/site-header";
 import { Site, MEALS, mealLabel, formatDay, loadSite } from "#app/shared/services/wedding";
 import { Party, PartyGuest, rsvpChannel, loadPartyByCode, normalizeCode } from "#app/shared/services/guests";
 import RsvpConfirmationEmail from "#app/emails/rsvp-confirmation";
+import { Alert } from "@elements/ui/alert";
+import { Badge } from "@elements/ui/badge";
+import { Button } from "@elements/ui/button";
+import { Card, CardAction, CardContent, CardFooter } from "@elements/ui/card";
+import { Field, FieldLabel, FieldContent, FieldTitle, FieldDescription, FieldSet, FieldLegend } from "@elements/ui/field";
+import { Input } from "@elements/ui/input";
+import { RadioGroup, RadioGroupItem } from "@elements/ui/radio-group";
+import { Table, TableCell } from "@elements/ui/table";
+import { Textarea } from "@elements/ui/textarea";
 
 export interface GuestReply {
   id: string;
@@ -155,6 +164,10 @@ function onFind(state: RsvpState) {
   state.busy = false;
 }
 
+function answer(r: GuestReply): string {
+  return r.attending === true ? "yes" : r.attending === false ? "no" : "";
+}
+
 function onAttend(r: GuestReply, attending: boolean) {
   r.attending = attending;
 
@@ -208,108 +221,121 @@ function onStartOver(state: RsvpState) {
       </div>
 
       <div e:switch={state.step}>
-        <form e:case="code" class="rsvp-card card" onsubmit={() => onFind(state)}>
-          <div class="card-body stack is-lg">
-            <div class="field">
-              <label for="code">Invitation code</label>
-              <input id="code"
-                     name="code"
-                     class="code-input"
-                     value={state.code}
-                     autocomplete="off"
-                     autocapitalize="characters"
-                     spellcheck={false}
-                     maxlength={12}
-                     placeholder="ABC123"
-                     required>
-              <p class="hint">It's printed on the back of your invitation card.</p>
-            </div>
+        <form e:case="code" onsubmit={() => onFind(state)}>
+          <Card class="rsvp-card">
+            <CardContent class="stack is-lg">
+              <Field label="Invitation code" description="It's printed on the back of your invitation card." required>
+                <Input class="code-input"
+                       name="code"
+                       value={state.code}
+                       placeholder="ABC123"
+                       required
+                       attrs={{ autocomplete: "off", autocapitalize: "characters", spellcheck: "false", maxlength: 12 }} />
+              </Field>
 
-            <p e:if={state.error} class="callout is-danger" role="alert">{state.error}</p>
+              <Alert e:if={state.error} variant="danger" description={state.error} />
 
-            <button type="submit" class="is-primary is-lg is-block" disabled={state.busy}>Find my invitation</button>
-          </div>
+              <Button type="submit" variant="primary" size="lg" block loading={state.busy}>Find my invitation</Button>
+            </CardContent>
+          </Card>
         </form>
 
-        <form e:case="reply" class="rsvp-card card" onsubmit={() => onSubmit(state)}>
-          <div class="card-head">
-            <h2>{state.party?.name}</h2>
-            <span e:if={state.party?.respondedAt} class="pill is-success">Replied {state.party!.respondedAt!.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-          </div>
+        <form e:case="reply" onsubmit={() => onSubmit(state)}>
+          <Card class="rsvp-card" title={state.party?.name ?? ""} level={2}>
+            <CardAction slot="action">
+              <Badge e:if={state.party?.respondedAt} variant="success">Replied {state.party!.respondedAt!.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</Badge>
+            </CardAction>
 
-          <div class="card-body stack is-lg">
-            <div>
-              <div e:for={r of state.reply.guests} class="guest stack is-md">
-                <h3 class="guest-name">{guestName(state.party, r.id)}</h3>
+            <CardContent class="stack is-lg">
+              <div>
+                <div e:for={r of state.reply.guests} class="guest stack is-md">
+                  <h3 class="guest-name">{guestName(state.party, r.id)}</h3>
 
-                <div class="choice">
-                  <button type="button" class={[r.attending === true && "is-active"]} onclick={() => onAttend(r, true)}>Joyfully accepts</button>
-                  <button type="button" class={[r.attending === false && "is-active"]} onclick={() => onAttend(r, false)}>Regretfully declines</button>
-                </div>
+                  <RadioGroup class="choice"
+                              value={answer(r)}
+                              name={`attending-${r.id}`}
+                              onValueChange={(v) => onAttend(r, v === "yes")}
+                              attrs={{ "aria-label": `Reply for ${guestName(state.party, r.id)}` }}>
+                    <FieldLabel>
+                      <Field orientation="horizontal" reserveError={false}>
+                        <RadioGroupItem value="yes" />
+                        <FieldTitle>Joyfully accepts</FieldTitle>
+                      </Field>
+                    </FieldLabel>
+                    <FieldLabel>
+                      <Field orientation="horizontal" reserveError={false}>
+                        <RadioGroupItem value="no" />
+                        <FieldTitle>Regretfully declines</FieldTitle>
+                      </Field>
+                    </FieldLabel>
+                  </RadioGroup>
 
-                <fieldset e:if={r.attending === true} class="meals">
-                  <legend>Dinner</legend>
-                  <label e:for={m of MEALS} class="meal">
-                    <input type="radio" name={`meal-${r.id}`} value={m.value} group={r.meal}>
-                    <span>
-                      <span class="meal-label">{m.label}</span>
-                      <span class="meal-note">{m.note}</span>
-                    </span>
-                  </label>
-                </fieldset>
+                  <FieldSet e:if={r.attending === true}>
+                    <FieldLegend variant="label">Dinner</FieldLegend>
+                    <RadioGroup class="meals" value={r.meal} name={`meal-${r.id}`} attrs={{ "aria-label": `Dinner for ${guestName(state.party, r.id)}` }}>
+                      <FieldLabel e:for={m of MEALS}>
+                        <Field orientation="horizontal" reserveError={false}>
+                          <RadioGroupItem value={m.value} />
+                          <FieldContent>
+                            <FieldTitle>{m.label}</FieldTitle>
+                            <FieldDescription>{m.note}</FieldDescription>
+                          </FieldContent>
+                        </Field>
+                      </FieldLabel>
+                    </RadioGroup>
+                  </FieldSet>
 
-                <div e:if={r.attending === true} class="field">
-                  <label for={`dietary-${r.id}`}>Allergies or dietary needs</label>
-                  <input id={`dietary-${r.id}`} value={r.dietary} placeholder="Optional">
+                  <Field e:if={r.attending === true} label="Allergies or dietary needs">
+                    <Input value={r.dietary} placeholder="Optional" />
+                  </Field>
                 </div>
               </div>
-            </div>
 
-            <div class="field">
-              <label for="email">Email for your confirmation</label>
-              <input id="email" name="email" type="email" value={state.reply.email} autocomplete="email" autocapitalize="none" spellcheck={false} required>
-            </div>
+              <Field label="Email for your confirmation" required>
+                <Input name="email" type="email" value={state.reply.email} required attrs={{ autocomplete: "email", autocapitalize: "none", spellcheck: "false" }} />
+              </Field>
 
-            <div class="field">
-              <label for="song">Request a song</label>
-              <input id="song" value={state.reply.song} placeholder="The one that gets you on the dance floor">
-            </div>
+              <Field label="Request a song">
+                <Input value={state.reply.song} placeholder="The one that gets you on the dance floor" />
+              </Field>
 
-            <div class="field">
-              <label for="message">A note for the couple</label>
-              <textarea id="message" rows={3} value={state.reply.message} placeholder="Optional"></textarea>
-            </div>
+              <Field label="A note for the couple">
+                <Textarea rows={3} value={state.reply.message} placeholder="Optional" />
+              </Field>
 
-            <p e:if={state.error} class="callout is-danger" role="alert">{state.error}</p>
-          </div>
+              <Alert e:if={state.error} variant="danger" description={state.error} />
+            </CardContent>
 
-          <div class="card-foot">
-            <button type="button" class="is-ghost" onclick={() => onStartOver(state)}>Not you?</button>
-            <button type="submit" class="is-primary" disabled={state.busy}>Send RSVP</button>
-          </div>
+            <CardFooter>
+              <Button variant="link" onclick={() => onStartOver(state)}>Not you?</Button>
+              <Button type="submit" variant="primary" loading={state.busy}>Send RSVP</Button>
+            </CardFooter>
+          </Card>
         </form>
 
-        <div e:case="done" class="rsvp-card card">
-          <div class="card-body done stack is-lg">
+        <Card e:case="done" class="rsvp-card">
+          <CardContent class="done stack is-lg">
             <h2 e:if={state.party?.guests.some((g) => g.attending)} class="script">See you in the orchard</h2>
             <h2 e:else class="script">We'll miss you</h2>
             <p>Thank you, {state.party?.name}. A confirmation is on its way to {state.party?.email}.</p>
 
-            <table class="summary">
-              <tbody>
-                <tr e:for={g of state.party?.guests ?? []}>
-                  <td>{g.name}</td>
-                  <td>{replyLine(g)}</td>
-                </tr>
-              </tbody>
-            </table>
+            <Table class="summary">
+              <table>
+                <tbody>
+                  <tr e:for={g of state.party?.guests ?? []}>
+                    <TableCell>{g.name}</TableCell>
+                    <TableCell align="end">{replyLine(g)}</TableCell>
+                  </tr>
+                </tbody>
+              </table>
+            </Table>
 
             <div class="cluster replied">
-              <button type="button" onclick={() => state.step = "reply"}>Change my reply</button>
-              <a class="button is-primary" href="/">Back to the site</a>
+              <Button onclick={() => state.step = "reply"}>Change my reply</Button>
+              <Button variant="primary" href="/">Back to the site</Button>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </main>
 
