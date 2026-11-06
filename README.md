@@ -6,6 +6,8 @@
 
 A wedding site with a countdown, RSVPs by invite code with meal choices, CSV guest import, and a live RSVP tracker.
 
+Vowbell uses the `luxury` theme from @elements/ui.
+
 [Run this app on your machine](https://elements.dev/demos/01a0f429-2d0f-7fde-8ea7-775ea6066cd6). Use this demo as inspiration, or as the starting point for your own app. Your agent creates a new app with this one as the scaffold, and you prompt it to add whatever features you want.
 
 ## How it's built
