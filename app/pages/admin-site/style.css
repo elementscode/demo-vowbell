@@ -14,9 +14,17 @@
   gap: var(--space-4);
 }
 
-.saved {
-  font-size: var(--text-sm);
-  color: var(--success);
+.when {
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.when > .date-picker {
+  flex: 1 1 11rem;
+}
+
+.when > .time-picker {
+  flex: 1 1 8rem;
 }
 
 .item {
@@ -85,11 +93,8 @@
   padding: var(--space-3);
 }
 
-.photo-body input {
-  width: 100%;
-}
-
 .photo-actions {
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--space-1);
 }

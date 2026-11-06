@@ -1,6 +1,7 @@
 import { test, equal, session, sql } from "@elements/app";
 import { saveSite, loadSiteForm, saveEvent } from "./services";
 import { loadSite } from "#app/shared/services/wedding";
+import { datePart, timePart, joinLocal } from "./template";
 
 function signIn() {
   let u = sql<{ id: string }>(`insert into users (email, name, passwordHash) values (${`c-${crypto.randomUUID().slice(0, 8)}@x.com`}, 'C', 'x') returning id`).firstOrThrow();
@@ -27,4 +28,11 @@ test("site editor", () => {
     // The seed events are in the list too, so check the order of this test's two.
     equal(events.filter((e) => e.name === "Drinks" || e.name === "Brunch").map((e) => e.name), ["Drinks", "Brunch"]);
   });
+});
+
+test("ceremony date and time split and join", () => {
+  equal(datePart("2026-11-14T16:30"), "2026-11-14");
+  equal(timePart("2026-11-14T16:30"), "16:30");
+  equal(joinLocal("2026-11-21", "16:30"), "2026-11-21T16:30");
+  equal(joinLocal("2026-11-21", ""), "2026-11-21T00:00");
 });

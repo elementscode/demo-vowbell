@@ -1,6 +1,18 @@
 import "./style.css";
 import favicon from "#app/shared/assets/favicons/favicon.svg";
 import { File } from "@elements/app";
+import { Alert } from "@elements/ui/alert";
+import { AlertDialog, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@elements/ui/alert-dialog";
+import { Badge } from "@elements/ui/badge";
+import { Button } from "@elements/ui/button";
+import { Card, CardContent, CardFooter } from "@elements/ui/card";
+import { DatePicker } from "@elements/ui/date-picker";
+import { Field } from "@elements/ui/field";
+import { Icon } from "@elements/ui/icon";
+import { Input } from "@elements/ui/input";
+import { Textarea } from "@elements/ui/textarea";
+import { TimePicker } from "@elements/ui/time-picker";
+import { toast } from "@elements/ui/toast";
 import { AdminShell } from "#app/shared/templates/admin-shell";
 import { Photo, photoUrl } from "#app/shared/services/wedding";
 import {
@@ -27,7 +39,6 @@ interface Editor {
   editingEvent: EventForm | null;
   editingHotel: HotelForm | null;
   files: File[];
-  saved: string;
   error: { section: string; message: string };
 }
 
@@ -39,16 +50,23 @@ function blankHotel(): HotelForm {
   return { id: "", name: "", address: "", url: "", details: "" };
 }
 
-function flash(ed: Editor, section: string) {
-  ed.saved = section;
+function flash(ed: Editor, message: string) {
   ed.error = { section: "", message: "" };
-  setTimeout(() => onFlashDone(ed, section), 2000);
+  toast.success(message);
 }
 
-function onFlashDone(ed: Editor, section: string) {
-  if (ed.saved === section) {
-    ed.saved = "";
-  }
+/** The date of a "YYYY-MM-DDTHH:MM" local time. */
+export function datePart(local: string): string {
+  return local.split("T")[0] ?? "";
+}
+
+/** The time of a "YYYY-MM-DDTHH:MM" local time. */
+export function timePart(local: string): string {
+  return (local.split("T")[1] ?? "").slice(0, 5);
+}
+
+export function joinLocal(date: string, time: string): string {
+  return `${date}T${time || "00:00"}`;
 }
 
 function fail(ed: Editor, section: string, err: any) {
@@ -58,7 +76,7 @@ function fail(ed: Editor, section: string, err: any) {
 function onSaveSite(ed: Editor, section: string) {
   try {
     ed.site = saveSite(ed.site);
-    flash(ed, section);
+    flash(ed, "Saved");
   } catch (err: any) {
     fail(ed, section, err);
   }
@@ -68,50 +86,44 @@ function onSaveEvent(ed: Editor) {
   try {
     ed.events = saveEvent(ed.editingEvent!);
     ed.editingEvent = null;
-    flash(ed, "events");
+    flash(ed, "Event saved");
   } catch (err: any) {
     fail(ed, "events", err);
   }
 }
 
 function onDeleteEvent(ed: Editor, e: EventForm) {
-  if (confirm(`Remove ${e.name} from the schedule?`)) {
-    ed.events = deleteEvent(e.id);
-    ed.editingEvent = null;
-  }
+  ed.events = deleteEvent(e.id);
+  ed.editingEvent = null;
 }
 
 function onSaveHotel(ed: Editor) {
   try {
     ed.hotels = saveHotel(ed.editingHotel!);
     ed.editingHotel = null;
-    flash(ed, "hotels");
+    flash(ed, "Hotel saved");
   } catch (err: any) {
     fail(ed, "hotels", err);
   }
 }
 
 function onDeleteHotel(ed: Editor, h: HotelForm) {
-  if (confirm(`Remove ${h.name}?`)) {
-    ed.hotels = deleteHotel(h.id);
-    ed.editingHotel = null;
-  }
+  ed.hotels = deleteHotel(h.id);
+  ed.editingHotel = null;
 }
 
 function onUpload(ed: Editor) {
   try {
     ed.photos = uploadPhotos(ed.files);
     ed.files = [];
-    flash(ed, "photos");
+    flash(ed, "Photos uploaded");
   } catch (err: any) {
     fail(ed, "photos", err);
   }
 }
 
 function onDeletePhoto(ed: Editor, p: Photo) {
-  if (confirm("Remove this photo from the gallery?")) {
-    ed.photos = deletePhoto(p.id);
-  }
+  ed.photos = deletePhoto(p.id);
 }
 
 function localLabel(local: string): string {
@@ -137,7 +149,6 @@ function localLabel(local: string): string {
     editingEvent: null,
     editingHotel: null,
     files: [],
-    saved: "",
     error: { section: "", message: "" },
   },
 )>
@@ -154,175 +165,165 @@ function localLabel(local: string): string {
             <h1>Site & photos</h1>
             <p class="text-sm">Everything guests see on the wedding site. Changes go live when you save.</p>
           </div>
-          <a class="button is-sm" href="/" target="_blank">Preview the site</a>
+          <Button size="sm" href="/" attrs={{ target: "_blank" }}>Preview the site</Button>
         </div>
 
-        <form class="card" onsubmit={() => onSaveSite(ed, "basics")}>
-          <div class="card-head"><h3>The basics</h3></div>
-          <div class="card-body">
-            <div class="is-grid stack is-md">
-              <div class="row is-start cluster is-md">
-                <div class="field">
-                  <label for="p1">Partner one</label>
-                  <input id="p1" value={ed.site.partnerOne} required>
-                </div>
-                <div class="field">
-                  <label for="p2">Partner two</label>
-                  <input id="p2" value={ed.site.partnerTwo} required>
-                </div>
+        <form onsubmit={() => onSaveSite(ed, "basics")}>
+          <Card title="The basics">
+            <CardContent class="stack is-md">
+              <div class="field-row">
+                <Field label="Partner one" required>
+                  <Input value={ed.site.partnerOne} required />
+                </Field>
+                <Field label="Partner two" required>
+                  <Input value={ed.site.partnerTwo} required />
+                </Field>
               </div>
-              <div class="row is-start cluster is-md">
-                <div class="field">
-                  <label for="when">Ceremony starts</label>
-                  <input id="when" type="datetime-local" value={ed.site.weddingLocal} required>
-                  <p class="hint">Time in {ed.site.timeZone.replace("_", " ")}. The countdown runs to this.</p>
-                </div>
-                <div class="field">
-                  <label for="rsvpby">Reply by</label>
-                  <input id="rsvpby" type="date" value={ed.site.rsvpBy}>
-                </div>
+              <div class="field-row">
+                <Field label="Ceremony starts" description={`Time in ${ed.site.timeZone.replace("_", " ")}. The countdown runs to this.`}>
+                  <div class="when row">
+                    <DatePicker value={datePart(ed.site.weddingLocal)}
+                                format={{ dateStyle: "medium" }}
+                                onValueChange={(d) => ed.site.weddingLocal = joinLocal(d, timePart(ed.site.weddingLocal))}
+                                block
+                                required />
+                    <TimePicker value={timePart(ed.site.weddingLocal)}
+                                onValueChange={(t) => ed.site.weddingLocal = joinLocal(datePart(ed.site.weddingLocal), t)}
+                                block
+                                label="Ceremony time"
+                                required />
+                  </div>
+                </Field>
+                <Field label="Reply by">
+                  <DatePicker value={ed.site.rsvpBy} block />
+                </Field>
               </div>
-              <div class="row is-start cluster is-md">
-                <div class="field">
-                  <label for="venue">Venue</label>
-                  <input id="venue" value={ed.site.venue}>
-                </div>
-                <div class="field">
-                  <label for="city">City</label>
-                  <input id="city" value={ed.site.city}>
-                </div>
+              <div class="field-row">
+                <Field label="Venue">
+                  <Input value={ed.site.venue} />
+                </Field>
+                <Field label="City">
+                  <Input value={ed.site.city} />
+                </Field>
               </div>
-              <div class="field">
-                <label for="tagline">Tagline</label>
-                <input id="tagline" value={ed.site.tagline} placeholder="A line under your names">
-              </div>
-            </div>
-          </div>
-          <div class="card-foot">
-            <p e:if={ed.error.section === "basics"} class="error">{ed.error.message}</p>
-            <span e:if={ed.saved === "basics"} class="saved">Saved</span>
-            <button type="submit" class="is-primary">Save</button>
-          </div>
+              <Field label="Tagline">
+                <Input value={ed.site.tagline} placeholder="A line under your names" />
+              </Field>
+              <Alert e:if={ed.error.section === "basics"} variant="danger" description={ed.error.message} />
+            </CardContent>
+            <CardFooter>
+              <Button type="submit" variant="primary">Save</Button>
+            </CardFooter>
+          </Card>
         </form>
 
-        <form class="card" onsubmit={() => onSaveSite(ed, "story")}>
-          <div class="card-head"><h3>Your story</h3></div>
-          <div class="card-body stack is-md">
-            <div class="field">
-              <label for="story-title">Heading</label>
-              <input id="story-title" value={ed.site.storyTitle}>
-            </div>
-            <div class="field">
-              <label for="story">Story</label>
-              <textarea id="story" rows={10} value={ed.site.story}></textarea>
-              <p class="hint">Leave a blank line between paragraphs.</p>
-            </div>
-          </div>
-          <div class="card-foot">
-            <p e:if={ed.error.section === "story"} class="error">{ed.error.message}</p>
-            <span e:if={ed.saved === "story"} class="saved">Saved</span>
-            <button type="submit" class="is-primary">Save</button>
-          </div>
+        <form onsubmit={() => onSaveSite(ed, "story")}>
+          <Card title="Your story">
+            <CardContent class="stack is-md">
+              <Field label="Heading">
+                <Input value={ed.site.storyTitle} />
+              </Field>
+              <Field label="Story" description="Leave a blank line between paragraphs.">
+                <Textarea rows={10} value={ed.site.story} />
+              </Field>
+              <Alert e:if={ed.error.section === "story"} variant="danger" description={ed.error.message} />
+            </CardContent>
+            <CardFooter>
+              <Button type="submit" variant="primary">Save</Button>
+            </CardFooter>
+          </Card>
         </form>
 
-        <div class="card">
-          <div class="card-head">
-            <h3>Schedule</h3>
-            <span e:if={ed.saved === "events"} class="saved">Saved</span>
-          </div>
-          <div class="card-body stack is-md">
+        <Card title="Schedule">
+          <CardContent class="stack is-md">
             <div e:for={e of ed.events} class="item stack is-sm">
               <div class="item-head row">
                 <div class="stack is-xs">
                   <strong>{e.name}</strong>
                   <span class="item-sub">{localLabel(e.startsLocal)} · {e.place}</span>
                 </div>
-                <button type="button" class="is-sm" onclick={() => ed.editingEvent = { ...e }}>Edit</button>
+                <Button size="sm" onclick={() => ed.editingEvent = { ...e }}>Edit</Button>
               </div>
               <EventEditor e:if={ed.editingEvent?.id === e.id} {ed} />
             </div>
 
             <EventEditor e:if={ed.editingEvent && !ed.editingEvent.id} {ed} />
             <div e:if={!ed.editingEvent || ed.editingEvent.id}>
-              <button type="button" onclick={() => ed.editingEvent = blankEvent(ed.site)}>Add an event</button>
+              <Button onclick={() => ed.editingEvent = blankEvent(ed.site)}>Add an event</Button>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <form class="card" onsubmit={() => onSaveSite(ed, "travel")}>
-          <div class="card-head"><h3>Travel</h3></div>
-          <div class="card-body stack is-md">
-            <div class="field">
-              <label for="travel">Getting here</label>
-              <textarea id="travel" rows={7} value={ed.site.travel}></textarea>
-              <p class="hint">Airports, trains, parking, shuttles. Leave a blank line between paragraphs.</p>
-            </div>
-          </div>
-          <div class="card-foot">
-            <span e:if={ed.saved === "travel"} class="saved">Saved</span>
-            <button type="submit" class="is-primary">Save</button>
-          </div>
+        <form onsubmit={() => onSaveSite(ed, "travel")}>
+          <Card title="Travel">
+            <CardContent class="stack is-md">
+              <Field label="Getting here" description="Airports, trains, parking, shuttles. Leave a blank line between paragraphs.">
+                <Textarea rows={7} value={ed.site.travel} />
+              </Field>
+            </CardContent>
+            <CardFooter>
+              <Button type="submit" variant="primary">Save</Button>
+            </CardFooter>
+          </Card>
         </form>
 
-        <div class="card">
-          <div class="card-head">
-            <h3>Hotels</h3>
-            <span e:if={ed.saved === "hotels"} class="saved">Saved</span>
-          </div>
-          <div class="card-body stack is-md">
+        <Card title="Hotels">
+          <CardContent class="stack is-md">
             <div e:for={h of ed.hotels} class="item stack is-sm">
               <div class="item-head row">
                 <div class="stack is-xs">
                   <strong>{h.name}</strong>
                   <span class="item-sub">{h.address}</span>
                 </div>
-                <button type="button" class="is-sm" onclick={() => ed.editingHotel = { ...h }}>Edit</button>
+                <Button size="sm" onclick={() => ed.editingHotel = { ...h }}>Edit</Button>
               </div>
               <HotelEditor e:if={ed.editingHotel?.id === h.id} {ed} />
             </div>
 
             <HotelEditor e:if={ed.editingHotel && !ed.editingHotel.id} {ed} />
             <div e:if={!ed.editingHotel || ed.editingHotel.id}>
-              <button type="button" onclick={() => ed.editingHotel = blankHotel()}>Add a hotel</button>
+              <Button onclick={() => ed.editingHotel = blankHotel()}>Add a hotel</Button>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div class="card">
-          <div class="card-head">
-            <h3>Photos</h3>
-            <span e:if={ed.saved === "photos"} class="saved">Uploaded</span>
-          </div>
-          <div class="card-body stack is-lg">
+        <Card title="Photos">
+          <CardContent class="stack is-lg">
             <form class="upload row" onsubmit={() => onUpload(ed)}>
-              <input type="file" multiple accept="image/*" value={ed.files}>
-              <button type="submit" class="is-primary" disabled={ed.files.length === 0}>Upload</button>
+              <Input type="file" multiple files={ed.files} attrs={{ accept: "image/*", "aria-label": "Photos to upload" }} />
+              <Button type="submit" variant="primary" disabled={ed.files.length === 0}>Upload</Button>
             </form>
-            <p e:if={ed.error.section === "photos"} class="callout is-danger">{ed.error.message}</p>
+            <Alert e:if={ed.error.section === "photos"} variant="danger" description={ed.error.message} />
 
             <div class="photos">
               <div e:for={[i, p] of ed.photos.entries()} class={["photo", ed.site.coverPhotoId === p.id && "is-cover"]}>
                 <div class="photo-img">
                   <img src={photoUrl(p)} alt={p.caption} loading="lazy">
-                  <span e:if={ed.site.coverPhotoId === p.id} class="pill is-accent">Cover</span>
+                  <Badge e:if={ed.site.coverPhotoId === p.id} variant="accent">Cover</Badge>
                 </div>
                 <div class="photo-body stack is-sm">
-                  <input value={p.caption} placeholder="Caption" onchange={() => captionPhoto(p.id, p.caption)}>
+                  <Input value={p.caption} placeholder="Caption" attrs={{ "aria-label": "Caption" }} onchange={() => captionPhoto(p.id, p.caption)} />
                   <div class="photo-actions row">
                     <div class="row">
-                      <button type="button" class="is-sm is-ghost" disabled={i === 0} onclick={() => ed.photos = movePhoto(p.id, -1)} aria-label="Move earlier">←</button>
-                      <button type="button" class="is-sm is-ghost" disabled={i === ed.photos.length - 1} onclick={() => ed.photos = movePhoto(p.id, 1)} aria-label="Move later">→</button>
+                      <Button size="xs" variant="ghost" icon label="Move earlier" disabled={i === 0} onclick={() => ed.photos = movePhoto(p.id, -1)}><Icon name="arrow-left" /></Button>
+                      <Button size="xs" variant="ghost" icon label="Move later" disabled={i === ed.photos.length - 1} onclick={() => ed.photos = movePhoto(p.id, 1)}><Icon name="arrow-right" /></Button>
                     </div>
                     <div class="row">
-                      <button e:if={ed.site.coverPhotoId !== p.id} type="button" class="is-sm is-ghost" onclick={() => ed.site = setCover(p.id)}>Make cover</button>
-                      <button type="button" class="is-sm is-ghost" onclick={() => onDeletePhoto(ed, p)}>Remove</button>
+                      <Button e:if={ed.site.coverPhotoId !== p.id} size="xs" variant="ghost" onclick={() => ed.site = setCover(p.id)}>Make cover</Button>
+                      <AlertDialog title="Remove this photo from the gallery?">
+                        <Button slot="trigger" size="xs" variant="ghost">Remove</Button>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction variant="danger" onclick={() => onDeletePhoto(ed, p)}>Remove</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialog>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </AdminShell>
   </body>
@@ -330,68 +331,81 @@ function localLabel(local: string): string {
 
 <EventEditor (ed: Editor)>
   <form class="stack is-md" onsubmit={() => onSaveEvent(ed)}>
-    <div class="row is-start cluster is-md">
-      <div class="field">
-        <label>Event</label>
-        <input value={ed.editingEvent!.name} placeholder="Rehearsal dinner" required>
-      </div>
-      <div class="field">
-        <label>Starts</label>
-        <input type="datetime-local" value={ed.editingEvent!.startsLocal} required>
-      </div>
+    <div class="field-row">
+      <Field label="Event" required>
+        <Input value={ed.editingEvent!.name} placeholder="Rehearsal dinner" required />
+      </Field>
+      <Field label="Starts">
+        <div class="when row">
+          <DatePicker value={datePart(ed.editingEvent!.startsLocal)}
+                      format={{ dateStyle: "medium" }}
+                      onValueChange={(d) => ed.editingEvent!.startsLocal = joinLocal(d, timePart(ed.editingEvent!.startsLocal))}
+                      block
+                      required />
+          <TimePicker value={timePart(ed.editingEvent!.startsLocal)}
+                      onValueChange={(t) => ed.editingEvent!.startsLocal = joinLocal(datePart(ed.editingEvent!.startsLocal), t)}
+                      block
+                      label="Event time"
+                      required />
+        </div>
+      </Field>
     </div>
-    <div class="row is-start cluster is-md">
-      <div class="field">
-        <label>Place</label>
-        <input value={ed.editingEvent!.place}>
-      </div>
-      <div class="field">
-        <label>Address</label>
-        <input value={ed.editingEvent!.address}>
-      </div>
-      <div class="field">
-        <label>Attire</label>
-        <input value={ed.editingEvent!.attire} placeholder="Cocktail attire">
-      </div>
+    <div class="field-row">
+      <Field label="Place">
+        <Input value={ed.editingEvent!.place} />
+      </Field>
+      <Field label="Address">
+        <Input value={ed.editingEvent!.address} />
+      </Field>
+      <Field label="Attire">
+        <Input value={ed.editingEvent!.attire} placeholder="Cocktail attire" />
+      </Field>
     </div>
-    <div class="field">
-      <label>Details</label>
-      <textarea rows={2} value={ed.editingEvent!.details}></textarea>
-    </div>
-    <p e:if={ed.error.section === "events"} class="callout is-danger">{ed.error.message}</p>
+    <Field label="Details">
+      <Textarea rows={2} value={ed.editingEvent!.details} />
+    </Field>
+    <Alert e:if={ed.error.section === "events"} variant="danger" description={ed.error.message} />
     <div class="cluster is-sm">
-      <button type="submit" class="is-primary is-sm">Save event</button>
-      <button type="button" class="is-sm" onclick={() => ed.editingEvent = null}>Cancel</button>
-      <button e:if={ed.editingEvent!.id} type="button" class="is-sm is-danger" onclick={() => onDeleteEvent(ed, ed.editingEvent!)}>Remove</button>
+      <Button type="submit" variant="primary" size="sm">Save event</Button>
+      <Button size="sm" onclick={() => ed.editingEvent = null}>Cancel</Button>
+      <AlertDialog e:if={ed.editingEvent!.id} title={`Remove ${ed.editingEvent!.name} from the schedule?`}>
+        <Button slot="trigger" size="sm" variant="danger">Remove</Button>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction variant="danger" onclick={() => onDeleteEvent(ed, ed.editingEvent!)}>Remove</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialog>
     </div>
   </form>
 </EventEditor>
 
 <HotelEditor (ed: Editor)>
   <form class="stack is-md" onsubmit={() => onSaveHotel(ed)}>
-    <div class="row is-start cluster is-md">
-      <div class="field">
-        <label>Hotel</label>
-        <input value={ed.editingHotel!.name} required>
-      </div>
-      <div class="field">
-        <label>Address</label>
-        <input value={ed.editingHotel!.address}>
-      </div>
-      <div class="field">
-        <label>Booking link</label>
-        <input type="url" value={ed.editingHotel!.url} placeholder="https://">
-      </div>
+    <div class="field-row">
+      <Field label="Hotel" required>
+        <Input value={ed.editingHotel!.name} required />
+      </Field>
+      <Field label="Address">
+        <Input value={ed.editingHotel!.address} />
+      </Field>
+      <Field label="Booking link">
+        <Input type="url" value={ed.editingHotel!.url} placeholder="https://" />
+      </Field>
     </div>
-    <div class="field">
-      <label>Details</label>
-      <textarea rows={2} value={ed.editingHotel!.details} placeholder="Room block, rate, booking deadline"></textarea>
-    </div>
-    <p e:if={ed.error.section === "hotels"} class="callout is-danger">{ed.error.message}</p>
+    <Field label="Details">
+      <Textarea rows={2} value={ed.editingHotel!.details} placeholder="Room block, rate, booking deadline" />
+    </Field>
+    <Alert e:if={ed.error.section === "hotels"} variant="danger" description={ed.error.message} />
     <div class="cluster is-sm">
-      <button type="submit" class="is-primary is-sm">Save hotel</button>
-      <button type="button" class="is-sm" onclick={() => ed.editingHotel = null}>Cancel</button>
-      <button e:if={ed.editingHotel!.id} type="button" class="is-sm is-danger" onclick={() => onDeleteHotel(ed, ed.editingHotel!)}>Remove</button>
+      <Button type="submit" variant="primary" size="sm">Save hotel</Button>
+      <Button size="sm" onclick={() => ed.editingHotel = null}>Cancel</Button>
+      <AlertDialog e:if={ed.editingHotel!.id} title={`Remove ${ed.editingHotel!.name}?`}>
+        <Button slot="trigger" size="sm" variant="danger">Remove</Button>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction variant="danger" onclick={() => onDeleteHotel(ed, ed.editingHotel!)}>Remove</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialog>
     </div>
   </form>
 </HotelEditor>
