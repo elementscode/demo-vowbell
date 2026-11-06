@@ -1,5 +1,8 @@
 import "./style.css";
 import { redirect } from "@elements/app";
+import { Badge } from "@elements/ui/badge";
+import { Button } from "@elements/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@elements/ui/tabs";
 import { signout } from "#app/shared/services/auth";
 
 const TABS = [
@@ -18,16 +21,18 @@ function onSignout() {
     <div class="admin-bar-inner row">
       <div class="admin-brand row">
         <a class="admin-brand-names" href="/admin">{names}</a>
-        <span class="pill is-accent">Admin</span>
+        <Badge variant="accent">Admin</Badge>
       </div>
 
-      <nav class="tab-list">
-        <a e:for={t of TABS} href={t.href} class={["tab", t.key === active && "is-active"]}>{t.label}</a>
-      </nav>
+      <Tabs value={active} class="admin-tabs">
+        <TabsList label="Admin">
+          <TabsTrigger e:for={t of TABS} value={t.key} href={t.href}>{t.label}</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       <div class="admin-actions cluster is-sm">
-        <a class="button is-ghost is-sm" href="/" target="_blank">View site</a>
-        <button type="button" class="is-sm" onclick={() => onSignout()}>Sign out</button>
+        <Button variant="ghost" size="sm" href="/" attrs={{ target: "_blank" }}>View site</Button>
+        <Button size="sm" onclick={() => onSignout()}>Sign out</Button>
       </div>
     </div>
   </header>
