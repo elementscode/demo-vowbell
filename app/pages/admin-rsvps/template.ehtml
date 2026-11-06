@@ -104,16 +104,14 @@ const COLUMNS: DataTableColumn[] = [
   {
     id: "guests",
     header: "Guests",
-    wrap: true,
-    size: 400,
+    type: "multiline",
     sortable: false,
-    value: (p: DataRow) => (p as Party).guests.map(guestLine).join(", "),
+    value: (p: DataRow) => (p as Party).guests.map(guestLine).join("\n"),
   },
-  { key: "message", header: "Note", wrap: true, size: 340, sortable: false },
+  { key: "message", header: "Note", wrap: true, sortable: false },
   {
     id: "replied",
     header: "Replied",
-    type: "datetime",
     value: (p: DataRow) => p.respondedAt,
     sortUndefined: "last",
     cell: (p: DataRow) => p.respondedAt ? when(p.respondedAt) : { text: "Waiting", tone: "warning" },
@@ -268,6 +266,8 @@ function filterCount(t: Tracker, f: Filter): number {
                      resizable={false}
                      pinnable={false}
                      groupable={false}
+                     viewMenu={false}
+                     savedViews={false}
                      pagination={false}
                      footer={false}
                      rowTone={(p: DataRow) => p.id === t.fresh ? "success" : ""}>
