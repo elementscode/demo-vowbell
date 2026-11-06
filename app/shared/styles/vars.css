@@ -1,18 +1,5 @@
 @layer tokens {
   :root {
-    /* Warm the neutrals so ink and rules sit with the terracotta. */
-    --neutral-50: oklch(0.985 0.005 60);
-    --neutral-100: oklch(0.96 0.008 60);
-    --neutral-200: oklch(0.92 0.011 60);
-    --neutral-300: oklch(0.86 0.014 55);
-    --neutral-400: oklch(0.74 0.018 50);
-    --neutral-500: oklch(0.62 0.020 50);
-    --neutral-600: oklch(0.50 0.022 45);
-    --neutral-700: oklch(0.38 0.024 45);
-    --neutral-800: oklch(0.28 0.024 40);
-    --neutral-900: oklch(0.22 0.022 40);
-    --neutral-950: oklch(0.13 0.016 40);
-
     /* A warm terracotta rose, low in chroma so it reads as ink, not as a sign. */
     --brand-50: oklch(0.975 0.010 40);
     --brand-100: oklch(0.945 0.022 40);
@@ -28,7 +15,7 @@
     --accent: var(--brand-600);
     --accent-deep: var(--brand-700);
     --accent-soft: var(--brand-50);
-    --accent-ink: #ffffff;
+    --accent-ink: var(--white);
     --accent-edge: var(--brand-200);
     --link-c: 0.105;
     --link-h: 40;
