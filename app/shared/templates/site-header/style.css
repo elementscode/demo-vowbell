@@ -9,7 +9,7 @@
 .site-header.is-overlay {
   position: absolute;
   inset: 0 0 auto 0;
-  color: #fff;
+  color: var(--white);
 }
 
 .site-header-inner {
@@ -44,8 +44,8 @@
 }
 
 .site-header.is-overlay .site-nav .button {
-  background: #fff;
-  border-color: #fff;
+  background: var(--white);
+  border-color: var(--white);
   color: oklch(0.25 0.03 40);
 }
 

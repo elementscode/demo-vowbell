@@ -1,4 +1,5 @@
 import "./style.css";
+import { Button } from "@elements/ui/button";
 import { Site, coupleNames, formatDate, firstName } from "#app/shared/services/wedding";
 
 <SiteHeader (site: Site, overlay: boolean = false)>
@@ -11,7 +12,7 @@ import { Site, coupleNames, formatDate, firstName } from "#app/shared/services/w
         <a class="is-optional" href="/#schedule">Schedule</a>
         <a class="is-optional" href="/#travel">Travel</a>
         <a class="is-optional" href="/#gallery">Gallery</a>
-        <a class="button is-primary is-sm" href="/rsvp">RSVP</a>
+        <Button variant="primary" size="sm" href="/rsvp">RSVP</Button>
       </nav>
     </div>
   </header>

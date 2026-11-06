@@ -1,6 +1,10 @@
 import "./style.css";
 import favicon from "#app/shared/assets/favicons/favicon.svg";
 import { SiteHeader, SiteFooter } from "#app/shared/templates/site-header";
+import { Badge } from "@elements/ui/badge";
+import { Button } from "@elements/ui/button";
+import { Card, CardContent } from "@elements/ui/card";
+import { Dialog, DialogClose } from "@elements/ui/dialog";
 import {
   Site,
   WeddingEvent,
@@ -72,32 +76,32 @@ function onTick(clock: { now: Date }) {
   clock.now = new Date();
 }
 
-function onInit(clock: { now: Date }, view: { open: number }, count: number) {
+interface Lightbox {
+  shown: boolean;
+  index: number;
+}
+
+function onInit(clock: { now: Date }) {
   setInterval(() => onTick(clock), 1000);
-  window.addEventListener("keydown", (e) => onKeyDown(e, view, count));
 }
 
-function onStep(e: MouseEvent, view: { open: number }, count: number, by: number) {
-  e.stopPropagation();
-  view.open = (view.open + by + count) % count;
+function onOpen(view: Lightbox, index: number) {
+  view.index = index;
+  view.shown = true;
 }
 
-function onKeyDown(e: KeyboardEvent, view: { open: number }, count: number) {
-  if (view.open < 0) {
-    return;
-  }
+function onStep(view: Lightbox, count: number, by: number) {
+  view.index = (view.index + by + count) % count;
+}
 
+function onKeyDown(e: KeyboardEvent, view: Lightbox, count: number) {
   switch (e.key) {
-    case "Escape":
-      view.open = -1;
-      break;
-
     case "ArrowRight":
-      view.open = (view.open + 1) % count;
+      onStep(view, count, 1);
       break;
 
     case "ArrowLeft":
-      view.open = (view.open - 1 + count) % count;
+      onStep(view, count, -1);
       break;
   }
 }
@@ -108,8 +112,8 @@ function onKeyDown(e: KeyboardEvent, view: { open: number }, count: number) {
   hotels: Hotel[],
   photos: Photo[],
   private clock: { now: Date } = { now: new Date() },
-  private view: { open: number } = { open: -1 },
-) oninit={() => onInit(clock, view, photos.length)}>
+  private view: Lightbox = { shown: false, index: 0 },
+) oninit={() => onInit(clock)}>
   <head>
     <title>{coupleNames(site)} · {formatDate(site.weddingAt, site.timeZone)}</title>
     <meta name="description" content={`${site.partnerOne} and ${site.partnerTwo} are getting married in ${site.city}.`}>
@@ -152,7 +156,7 @@ function onKeyDown(e: KeyboardEvent, view: { open: number }, count: number) {
         </div>
         <p e:else class="hero-tagline">Just married.</p>
 
-        <a class="button is-lg" href="/rsvp">RSVP</a>
+        <Button class="hero-rsvp" size="lg" href="/rsvp">RSVP</Button>
       </div>
     </section>
 
@@ -187,7 +191,7 @@ function onKeyDown(e: KeyboardEvent, view: { open: number }, count: number) {
                 <p class="schedule-where">{line.event.place}</p>
                 <p e:if={line.event.address} class="schedule-address">{line.event.address}</p>
                 <p e:if={line.event.details} class="schedule-details">{line.event.details}</p>
-                <span e:if={line.event.attire} class="pill">{line.event.attire}</span>
+                <Badge e:if={line.event.attire} variant="secondary">{line.event.attire}</Badge>
               </div>
             </div>
           </li>
@@ -208,14 +212,14 @@ function onKeyDown(e: KeyboardEvent, view: { open: number }, count: number) {
           </div>
 
           <div class="stack is-md">
-            <div e:for={hotel of hotels} class="hotel card">
-              <div class="card-body stack is-sm">
+            <Card e:for={hotel of hotels} class="hotel">
+              <CardContent class="stack is-sm">
                 <h3>{hotel.name}</h3>
                 <p class="hotel-address">{hotel.address}</p>
                 <p e:if={hotel.details}>{hotel.details}</p>
                 <p e:if={hotel.url}><a href={hotel.url} target="_blank" rel="noopener">Book a room</a></p>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
@@ -229,7 +233,7 @@ function onKeyDown(e: KeyboardEvent, view: { open: number }, count: number) {
         </div>
 
         <div class="gallery">
-          <button e:for={[i, photo] of photos.entries()} type="button" class="gallery-item" onclick={() => view.open = i}>
+          <button e:for={[i, photo] of photos.entries()} type="button" class="gallery-item" onclick={() => onOpen(view, i)}>
             <img src={photoUrl(photo)} alt={photo.caption} loading="lazy">
           </button>
         </div>
@@ -240,22 +244,22 @@ function onKeyDown(e: KeyboardEvent, view: { open: number }, count: number) {
       <div class="stack is-lg">
         <h2 class="script">We hope you can join us</h2>
         <p e:if={site.rsvpBy}>Kindly reply by {formatDay(site.rsvpBy!, "UTC")}.</p>
-        <a class="button is-primary is-lg" href="/rsvp">RSVP with your invitation code</a>
+        <Button variant="primary" size="lg" href="/rsvp">RSVP with your invitation code</Button>
       </div>
     </section>
 
     <SiteFooter {site} />
 
-    <div e:if={view.open >= 0 && photos[view.open]} class="lightbox" onclick={() => view.open = -1}>
-      <img src={photoUrl(photos[view.open])} alt={photos[view.open].caption}>
-      <div class="stack is-sm">
-        <p e:if={photos[view.open].caption} class="lightbox-caption">{photos[view.open].caption}</p>
+    <Dialog open={view.shown} size="xl" class="lightbox" closeButton={false} label="Photo">
+      <div e:if={photos[view.index]} class="lightbox-body stack is-md" onkeydown={(e) => onKeyDown(e, view, photos.length)}>
+        <img src={photoUrl(photos[view.index])} alt={photos[view.index].caption}>
+        <p e:if={photos[view.index].caption} class="lightbox-caption">{photos[view.index].caption}</p>
         <div class="lightbox-bar row">
-          <button type="button" class="is-sm" onclick={(e) => onStep(e, view, photos.length, -1)}>Previous</button>
-          <button type="button" class="is-sm">Close</button>
-          <button type="button" class="is-sm" onclick={(e) => onStep(e, view, photos.length, 1)}>Next</button>
+          <Button size="sm" onclick={() => onStep(view, photos.length, -1)}>Previous</Button>
+          <DialogClose><Button size="sm">Close</Button></DialogClose>
+          <Button size="sm" onclick={() => onStep(view, photos.length, 1)}>Next</Button>
         </div>
       </div>
-    </div>
+    </Dialog>
   </body>
 </html>

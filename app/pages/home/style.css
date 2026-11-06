@@ -9,7 +9,7 @@
   min-height: min(100svh, 60rem);
   padding: var(--space-24) var(--space-6) var(--space-16);
   overflow: hidden;
-  color: #fff;
+  color: var(--white);
   text-align: center;
   background: oklch(0.25 0.03 40);
 }
@@ -40,7 +40,7 @@
 }
 
 .hero .eyebrow {
-  color: #fff;
+  color: var(--white);
   opacity: 0.85;
   letter-spacing: var(--tracking-widest);
 }
@@ -114,10 +114,10 @@
   opacity: 0.8;
 }
 
-.hero .button.is-lg {
+.hero .hero-rsvp {
   margin-top: var(--space-2);
-  background: #fff;
-  border-color: #fff;
+  background: var(--white);
+  border-color: var(--white);
   color: oklch(0.25 0.03 40);
 }
 
@@ -331,23 +331,11 @@
   transform: scale(1.04);
 }
 
-.lightbox {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: grid;
-  grid-template-rows: 1fr auto;
-  place-items: center;
-  gap: var(--space-4);
-  padding: var(--space-8);
-  background: oklch(0.1 0.01 40 / 0.92);
-  color: #fff;
-}
-
-.lightbox img {
+.lightbox-body img {
+  display: block;
   max-width: 100%;
-  max-height: calc(100svh - 10rem);
-  border-radius: var(--radius-lg);
+  max-height: calc(100svh - 14rem);
+  margin-inline: auto;
   object-fit: contain;
 }
 
@@ -356,16 +344,12 @@
   font-family: var(--font-serif);
   font-size: var(--text-xl);
   font-style: italic;
+  text-align: center;
 }
 
 .lightbox-bar {
   justify-content: center;
-}
-
-.lightbox-bar button {
-  background: oklch(1 0 0 / 0.1);
-  border-color: oklch(1 0 0 / 0.3);
-  color: #fff;
+  gap: var(--space-2);
 }
 
 /* RSVP call to action */
