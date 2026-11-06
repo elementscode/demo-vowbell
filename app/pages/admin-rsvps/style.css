@@ -156,6 +156,5 @@
 @media (max-width: 45rem) {
   .filters {
     --control-padding-x: var(--space-3);
-    overflow-x: auto;
   }
 }
