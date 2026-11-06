@@ -1,4 +1,4 @@
-@import "#app/shared/templates/admin-shell/style.css";
+@import "#app/shared/styles/page.css";
 
 .guests-head {
   justify-content: space-between;

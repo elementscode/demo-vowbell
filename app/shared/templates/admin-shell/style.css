@@ -1,5 +1,3 @@
-@import "#app/shared/styles/page.css";
-
 .admin-bar {
   border-bottom: 1px solid var(--rule);
   background: var(--bg);
